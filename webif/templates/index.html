@@ -1,0 +1,287 @@
+<!-- Functions in Scripts       -->
+<script src="./static/js/handler.js"></script>
+<!-- Functions in Scripts       -->
+{% extends "base_plugin.html" %}
+
+{% set logo_frame = false %}
+{% set use_bodytabs = true %}
+{% set tabcount = 4 %}
+{% set tab1title = 'Cookie Handling' %}
+{% set tab2title = 'Alexa Devices' %}
+{% set tab3title = 'Command Handling' %}
+{% set tab4title = 'to be defined' %}
+
+{% block headtable %}
+<table class="table table-striped table-hover">
+	<tbody>
+		<tr>
+			<td class="py-1"><strong>csrf Cookie</strong></td>
+			<td align="right" class="py-1">{{ csrf_cookie }}</td>
+		</tr>
+<!--
+		<tr>
+			<td class="py-1"><strong>a2s_csrf Cookie</strong></td>
+			<td align="right" class="py-1">{{ a2s_csrf_cookie }}</td>
+		</tr>
+-->
+		<tr>
+			<td class="py-1"><strong>No. of Alexa-Devices</strong></td>
+			<td align="right" class="py-1">{{ alexa_device_count }}</td>
+		</tr>
+		<tr>
+			<td class="py-1"><strong>Cookie Expiration Date</strong></td>
+			<td align="right" class="py-1">{{ cookie_expire }}</td>
+		</tr>
+
+		<tr>
+			<td class="py-1"><strong>selected Device</strong></td>
+			<td align ="right" class="py-1" id="actDevice" align="right">no Device selected</td>
+		</tr>
+
+	</tbody>
+</table>
+{% endblock headtable %}
+
+{% block buttons %}
+{% endblock buttons %}
+
+
+{% block bodytab1 %}
+
+<div class="table-responsive" style="margin-left: 2px; margin-right: 2px; margin-bottom: 20px;margin-top: 20px;" class="row">
+<form name="input" action="storecookie.html" method="POST" enctype="multipart/form-data">
+	<table class="table table-striped table-hover">
+
+			<tr>
+				<td style="width: 20%"> 
+					<input name="save" value="{{ _('Store Cookie','button') }}" type="submit" class="btn btn-shng btn-sm"></br>
+				</td>
+				<td style="width: 20%" valign = middle align="left"><strong>Result :</strong></td>
+				<td style="width: 60%" valign = middle align="left">{{ txt_Result }}</td>
+			</tr>
+
+	</table>
+        <div class="container-fluid" style="width: 100%;">
+			<div style="width: 100%; float: left; border: 1px solid #ccc; margin-bottom: 100px; margin-right: 5px;">
+				<div title="{{ _('Paste the Cookie-File here') }}">
+	       		        <div style="font-weight: bold; padding-left: 5px; border-bottom: 2px solid #ccc;">{{ _('Paste the Cookie-File here') }}</div>
+					
+					<textarea style="width: 100%" size="8"  id="cookie_txt" name="cookie_txt">{{ cookie_txt }}</textarea>
+					
+					
+				</div>
+			</div>
+	</div>
+</form>
+</div>
+<script>
+     var rulers = [];
+     for (var i = 1; i <= 100; i++) {
+        rulers.push({color: '#eee', column: i * 4, lineStyle: "dashed"});
+     }
+
+     var myCodeMirrorConf = CodeMirror.fromTextArea(document.getElementById("cookie_txt"), {
+        lineNumbers: true,
+        lineSeparator: '\n',
+        indentUnit: 4,
+        rulers: rulers,
+        lineWrapping: false,
+        indentWithTabs: false,
+        mode: "yaml"
+
+     });
+
+
+     window.addEventListener("resize", function(){resizeCodeMirror(myCodeMirrorConf, 60)}, false);
+     resizeCodeMirror(myCodeMirrorConf, 60);
+
+</script>
+{% endblock bodytab1 %}
+
+{% block bodytab2 %}
+<div class="table-responsive" id="AlexaDevices" href="#" onclick="SelectDevice();" style="margin-left: 2px; margin-right: 2px;" class="row">
+        <div class="col-sm-12">
+                        <table class="table table-striped table-hover pluginList">
+			<thead>
+				<tr>
+					<th>{{ _('Alexa-Device-Name') }}</th>
+                        		<th style="width: 200;">{{ _('deviceFamily') }}</th>
+					<th style="width: 200;">{{ 'deviceSerial' }}</th>
+					<th>deviceType</th>
+					<th>deviceOwnerCustomerId</th>
+					</tr>
+			</thead>
+			<tbody>
+			{% for item in device_list %}
+				<tr>
+					<td class="py-1">{{ item.name }}</td>
+					<td class="py-1">{{ item.family }}</td>					
+					<td class="py-1">{{ item.serialNumber }}</td>					
+					<td class="py-1">{{ item.deviceType }}</td>
+					<td class="py-1">{{ item.deviceOwnerCustomerId }}</td>					
+				</tr>
+			{% endfor %}
+			</tbody>
+		        </table>
+        </div>
+</div>
+
+
+<script>
+
+$('#AlexaDevices').on('click', 'tr',function()
+  {
+   var value = $(this).closest('tr').find('td').first().text();
+
+   if (value != "") {
+        document.getElementById("selectedDevice").value= value;
+        selectedDevice = value;
+        // Set Value in Form
+        document.getElementById("actDevice").innerHTML = value;
+        document.getElementById("actDevice").Refresh();
+      }
+  });
+
+</script>
+
+
+
+{% endblock bodytab2 %}
+
+{% block bodytab3 %}
+<style>
+li.L0, li.L1, li.L2, li.L3,
+li.L5, li.L6, li.L7, li.L8
+{ list-style-type: decimal !important }
+</style>
+
+
+
+<table style="width: 100%; align=left">
+<th style="width: 25%; align=left">
+</th>
+<th style="width: 50%; align=left">
+</th>
+<tr>
+<td valign=top>
+
+<div class="table-responsive" style="margin-left: 2px; margin-right: 2px;" class="row">
+	<div class="col-sm-12">
+                <div class="row">
+                    <div class="col" style="max-width: 100%;">
+                        <div class="card">
+                            <div class="card-header p-1 shng_heading">
+                                <a class="float-sm-right" href="#" onclick="reloadCmds();" title="{{ _('Neu Laden', 'button') }}"><span id="refresh-element" class="fas fa-sync"></span></a>
+                                <strong>{{ _('existing Commands') }}</strong>
+                            </div>
+                            <div class="card-body p-1">
+                                <div class="card-text" style="">
+                                    <div id="cardOverlay" class="cardOverlay">
+                                        <div style="position: relative; top: 45%; left:45%;">
+                                            <span id="reload-element" class="fas fa-sync fa-4x"/>
+                                        </div>
+                                    </div>
+                                    <div id="Cmds" class="data-container refresh-data pre-scrollable" style="overflow-x: auto;">
+                                    {{ cmd_list }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+</td>
+
+<td align"=left" valign="top">
+
+
+          <div class="row" align="left"  valign="top" style="margin-bottom: 15px">
+          <button onclick="BtnSave()" style="margin-left : 34px" type="submit" class="btn btn-shng btn-sm"  id="btn-save"> <i class="far fa-save"></i></i>&nbsp;{{ _('Save') }}</input>
+          <button onclick="BtnCheck()"style="margin-left : 5px" type="submit" class="btn btn-shng btn-sm" value="btnCheck" id="btn-check"><i class="far fa-check-square"></i></i>&nbsp;{{ _('Check Json') }}</input>
+          <button onclick="BtnTest()" style="margin-left : 5px" type="submit" class="btn btn-shng btn-sm" value="btnTest" id="btn-test"><i class="far fa-play-circle"></i></i>&nbsp;{{ _('Test') }}</input>
+          <button onclick="BtnDelete()" style="margin-left :5px" type="submit" class="btn btn-shng btn-sm" value="btnDelete" id="btn-delete"><i class="far fa-trash-alt"></i>&nbsp;{{ _('Delete') }}</input>
+
+	  <strong> <button id="resultOK" style="visibility:hidden; margin-left:20px; font-size: 35px;" color="green"  class="far fa-check-circle"></strong></button>
+	  <strong> <button id="resultNOK" style="visibility:hidden; margin-left:1px; font-size: 35px" color="red"  class="fas fa-exclamation-triangle"></strong></button>
+
+	  <textarea type="input" style="width:380px;margin-bottom: 5px; margin-left : 5px;margin-right: 5px; height : 50px;font-size: 12px;" class="form-control" name="txtresult" id="txtresult" placeholder="{{ _('...') }}"  disabled>{{ txtResult }}</textarea><br/>
+
+
+	  </div>
+<form id="myForm" name="input" action="handleButtons.html" method="GET" enctype="multipart/form-data" align="left">
+          <div class="row" align="left" >
+          <input type="input" style="margin-bottom: 1px; margin-left: 34px; width: 90%" class="form-control" name="txtCmdName" id="txtCmdName" placeholder="{{ _('Command-Name...') }}" value=""><br/>
+          </div>
+          <div class="row" align="left" >
+          <input type="input" style="margin-bottom: 1px; margin-left : 34px;width: 90%" class="form-control" name="txtApiUrl" id="txtApiUrl" placeholder="{{ _('API-URL (/api/..)') }}" value=""><br/>
+          </div>
+          <div class="row" align="left" >
+          <textarea type="input" style="margin-bottom: 5px; margin-left : 34px;width: 90%; height : 80px" class="form-control" name="txtDescription" id="txtDescription" placeholder="{{ _('Description...') }}" value=""></textarea><br/>
+          </div>
+
+          <div class="row" align="left" >
+          <input type="input" style="margin-bottom: 1px; margin-left : 34px;width: 90%" class="form-control" name="txtValue" id="txtValue" placeholder="{{ _('value') }}" value=""><br/>
+          </div>
+
+        <div style="width: 95%; float: left; border: 1px solid #ccc; margin-bottom: 10px; margin-right: 5px; margin-left: 20px">
+            <div title="{{ _('Hier den Ausdruck eingeben, der ausgewertet werden soll. Items können mit absolutem Pfad oder relativem Pfad angegeben werden.') }}">
+                <div style="font-weight: bold; margin-left : 30px; padding-left: 5px; border-bottom: 2px solid #ccc;">{{ _('(Payload for Api-Call in json-Format - if no Payload enter {})') }}</div>
+                <textarea  style="font-size: 16px" id="txt_payload" name="txt_payload">{{ txt_payload }}</textarea>
+            </div>
+
+        </div>
+        <div class="row" align="left" >
+          <input style="margin-bottom: 1px; margin-left: 34px; width: 90%;visibility:hidden;" class="form-control" name="txtButton" id="txtButton" value=""><br/>
+	</div>
+        <div class="row" align="left" >
+          <input style="margin-bottom: 1px; margin-left: 34px; width: 90%;visibility:hidden;" class="form-control" name="selectedDevice" id="selectedDevice" value="no Device selected"><br/>
+	</div>
+   
+    <br>
+
+</form>
+</td>
+</tr>
+
+<script>
+    reloadCmds();
+
+     var rulers = [];
+     for (var i = 1; i <= 100; i++) {
+        rulers.push({color: '#eee', column: i * 4, lineStyle: "dashed"});
+     }
+
+     var myCodeMirrorConf = CodeMirror.fromTextArea(document.getElementById("txt_payload"), {
+        lineNumbers: true,
+        lineSeparator: '\n',
+        indentUnit: 4,
+        rulers: rulers,
+        lineWrapping: true,
+        indentWithTabs: false,
+        height: 300,
+        name: "javascript", json: true
+     });
+
+     function resizeCodeMirrors() {
+        if (!myCodeMirrorConf.getOption("fullScreen")) {
+            var browserHeight = $( window ).height();
+            offsetTop = $('.CodeMirror').offset().top;
+            myCodeMirrorConf.getScrollerElement().style.maxHeight = ((-1)*(offsetTop) -300 + browserHeight)+ 'px';
+            myCodeMirrorConf.refresh();
+        }
+
+     }
+
+     window.addEventListener("resize", resizeCodeMirrors, false);
+     resizeCodeMirrors();
+</script>
+
+{% endblock bodytab3 %}
+
+
+{% block bodytab4 %}
+
+{% endblock bodytab4 %}
+
+
+
+<!-- -->
