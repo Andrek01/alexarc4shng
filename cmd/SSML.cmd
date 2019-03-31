@@ -1,0 +1,3 @@
+apiurl|/api/behaviors/preview
+description|Use SSML  to speak
+json|{"@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode", "status": "ENABLED", "operationPayload": {"customerId": "<deviceOwnerCustomerId>", "target": {"customerId": "<deviceOwnerCustomerId>", "devices": [{"deviceSerialNumber": "<serialNumber>", "deviceTypeId": "<deviceType>"}]}, "expireAfter": "PT5S", "content": [{"speak": {"value": "<mValue>", "type": "ssml"}, "display": {"title": "ioBroker", "body": "<mValue>"}, "locale": "de-DE"}], "@type": "com.amazon.alexa.behaviors.model.Sequence", "type": "AlexaAnnouncement"}}

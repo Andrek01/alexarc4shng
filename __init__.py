@@ -352,7 +352,7 @@ class alexarc4shng(SmartPlugin):
                                 csrf = lineFields[6]
 
         except Exception as err:
-            logger.debug('Cookiefile could not be opened %s' % cookiefile)
+            self.logger.debug('Cookiefile could not be opened %s' % cookiefile)
         return csrf
     
     

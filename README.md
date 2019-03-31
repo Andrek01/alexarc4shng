@@ -13,14 +13,14 @@ So its possible to switch on an TuneIn-Radio Channel, send some messages via Tex
 
 In the API-URL and in the json-payload you have to replace the real values from the Alexa-Webinterface with the following placeholders. For testing functions its not really neccessary to use the placeholders.
 
-### Placeholders :
+###Placeholders :
 
 ```
-<mValue>			= Value to send
+<mValue>				= Value to send
 <serialNumber>			= SerialNo. of the device where the command should go to
-<familiy>			= device family
+<familiy>				= device family
 <deviceType>			= deviceType
-<deviceOwnerCustomerId>		= OwnerID of the device
+<deviceOwnerCustomerId>	= OwnerID of the device
 ```
 ####<strong>!! Please keep in mind to use the "<" and the ">" the qualify the placeholders !!</strong>
 
