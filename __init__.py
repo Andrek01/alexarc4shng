@@ -291,8 +291,8 @@ class alexarc4shng(SmartPlugin):
         myCurl.setopt(myCurl.URL,myUrl)
         myCurl.setopt(pycurl.HTTPHEADER, myheaders)
         myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
-        myCurl.setopt(pycurl.COOKIEJAR ,'./plugins/alexarc4shng/cookies.txt')
-        myCurl.setopt(pycurl.COOKIEFILE ,'./plugins/alexarc4shng/cookies.txt')
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile)
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
         myCurl.setopt(pycurl.WRITEDATA , buffer)
         myCurl.setopt(pycurl.POST,1)
         if len(postfields) > 20:
@@ -305,21 +305,25 @@ class alexarc4shng(SmartPlugin):
 
     
     def getDevicesbyCurl(self):
-        buffer = BytesIO()
-        myCurl = pycurl.Curl()
-        myCurl.setopt(myCurl.URL,'https://alexa.amazon.de/api/devices-v2/device?cached=false')
-        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
-        myCurl.setopt(pycurl.COOKIEJAR ,'./plugins/alexarc4shng/cookies.txt')
-        myCurl.setopt(pycurl.COOKIEFILE ,'./plugins/alexarc4shng/cookies.txt')
-        myCurl.setopt(pycurl.WRITEDATA , buffer)
-        myCurl.setopt(pycurl.HTTPGET,1)
-        myCurl.perform()
-        self.logger.info('Status of getDevicesbyCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
-        body=buffer.getvalue()
-        mybody = body.decode()
-        myDict=json.loads(mybody)
-        myDevices = EchoDevices()
-    
+        try:
+            buffer = BytesIO()
+            myCurl = pycurl.Curl()
+            myCurl.setopt(myCurl.URL,'https://alexa.amazon.de/api/devices-v2/device?cached=false')
+            myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+            myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile)
+            myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
+            myCurl.setopt(pycurl.WRITEDATA , buffer)
+            myCurl.setopt(pycurl.HTTPGET,1)
+            myCurl.perform()
+            self.logger.info('Status of getDevicesbyCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+            body=buffer.getvalue()
+            mybody = body.decode()
+            myDict=json.loads(mybody)
+            myDevices = EchoDevices()
+        except Exception as err:
+            self.logger.debug('Error while getting Devices',err)
+            return None
+        
         for device in myDict['devices']:
             deviceFamily=device['deviceFamily']
             if deviceFamily == 'WHA' or deviceFamily == 'VOX' or deviceFamily == 'FIRE_TV' or deviceFamily == 'TABLET':
@@ -335,7 +339,9 @@ class alexarc4shng(SmartPlugin):
                 actDevice.name=device['accountName']
                 actDevice.deviceOwnerCustomerId=device['deviceOwnerCustomerId']
             except Exception as err:
-                print("Fehler",err)
+                self.logger.debug('Error while getting Devices',err)
+                myDevices = None
+                
         return myDevices
     
     def parseCookieFile(self,cookiefile):
@@ -353,6 +359,7 @@ class alexarc4shng(SmartPlugin):
 
         except Exception as err:
             self.logger.debug('Cookiefile could not be opened %s' % cookiefile)
+        
         return csrf
     
     
@@ -701,6 +708,7 @@ class WebInterface(SmartPluginWebIf):
 
         :return: contents of the template after beeing rendered
         """
+        
         myDevices = self.GetDeviceList()
         alexa_device_count = len(myDevices)
         return self.render_template('index.html',device_list=myDevices,csrf_cookie=self.plugin.csrf,alexa_device_count=alexa_device_count)
@@ -737,20 +745,22 @@ class WebInterface(SmartPluginWebIf):
     
     
     def GetDeviceList(self):
+        self.plugin.Echos = self.plugin.getDevicesbyCurl()
         Device_items = []
-        
-        myDevices = self.plugin.Echos.devices
-        for actDevice in myDevices:
-            newEntry=dict()
-            Echo2Add=self.plugin.Echos.devices.get(actDevice)
-            newEntry['name'] = Echo2Add.id
-            newEntry['serialNumber'] = Echo2Add.serialNumber
-            newEntry['family'] = Echo2Add.family
-            newEntry['deviceType'] = Echo2Add.deviceType
-            newEntry['deviceOwnerCustomerId'] = Echo2Add.deviceOwnerCustomerId
-            Device_items.append(newEntry)
+        try:
+            myDevices = self.plugin.Echos.devices
+            for actDevice in myDevices:
+                newEntry=dict()
+                Echo2Add=self.plugin.Echos.devices.get(actDevice)
+                newEntry['name'] = Echo2Add.id
+                newEntry['serialNumber'] = Echo2Add.serialNumber
+                newEntry['family'] = Echo2Add.family
+                newEntry['deviceType'] = Echo2Add.deviceType
+                newEntry['deviceOwnerCustomerId'] = Echo2Add.deviceOwnerCustomerId
+                Device_items.append(newEntry)
             
-        
+        except Exception as err:
+            self.logger.debug('No devices found',err)
         
         return Device_items
         
@@ -775,19 +785,16 @@ class WebInterface(SmartPluginWebIf):
                            cookie_txt=cookie_txt,
                            csrf_cookie=value1)
 
-            
+        file=open(self.plugin.cookiefile,"w")
+        for line in myLines:
+            file.write(line+"\r\n")
+        file.close()
         
         self.plugin.csrf = value1
         myDevices = self.GetDeviceList()
         alexa_device_count = len(myDevices)
         
         
-
-        file=open(self.plugin.cookiefile,"w")
-        for line in myLines:
-            file.write(line+"\r\n")
-        file.close()
-
         tmpl = self.tplenv.get_template('index.html')
         return tmpl.render(plugin_shortname=self.plugin.get_shortname(), plugin_version=self.plugin.get_version(),
                            plugin_info=self.plugin.get_info(), p=self.plugin,
