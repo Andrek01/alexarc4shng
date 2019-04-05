@@ -103,7 +103,7 @@ alexa_cmd_01: True:EchoDotKueche:StartTuneInStation:s96141
 
 You can specify up to 99 Commands per shng-item. The plugin scanns the item.conf/item.yaml during initialization for commands starting with 01 up to 99.
 
-<strong>Please start all the time with 01, the command-numbers must be serial, dont forget one the scann of commands is stopped when there is no command found with the next number</strong>
+<strong>Please start all the time with 01, the command-numbers must be serial, dont forget one. The scann of commands stops when there is no command found with the next number</strong>
 
 #### Example
 
@@ -147,13 +147,13 @@ Example for settings in an item.conf file :
         type = bool
         alexa_name = "Licht Büro"
         alexa_description = "Licht Büro"
-		alexa_actions = "TurnOn TurnOff"
+        alexa_actions = "TurnOn TurnOff"
         alexa_icon = "LIGHT"
         alexa_cmd_01 = "True:EchoDotKueche:StartTuneInStation:s96141"
         alexa_cmd_02 = "True:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist eingeschalten"
-		alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
-		alexa_cmd_04 = "False:EchoDotKueche:Pause: "
-    	visu_acl = rw
+        alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
+        alexa_cmd_04 = "False:EchoDotKueche:Pause: "
+        visu_acl = rw
         knx_dpt = 1
         knx_listen = 1/1/105
         knx_send = 1/1/105
