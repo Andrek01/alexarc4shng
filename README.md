@@ -33,7 +33,7 @@ This plugin for smarthomeNG is mainly based on the informations of
 - Text2Speech (sends a Text to the echo, echo will speak it)
 - StartTuneInStation (starts a TuneInRadiostation with the guideID you send)
 
-###Placeholders :<a name="placeholders"/></a>
+### Placeholders :<a name="placeholders"/></a>
 ```
 <mValue>				= Value to send
 <serialNumber>			= SerialNo. of the device where the command should go to
@@ -41,7 +41,7 @@ This plugin for smarthomeNG is mainly based on the informations of
 <deviceType>			= deviceType
 <deviceOwnerCustomerId>	= OwnerID of the device
 ```
-####<strong>!! Please keep in mind to use the "<" and the ">" the qualify the placeholders !!</strong>
+#### <strong>!! Please keep in mind to use the "<" and the ">" the qualify the placeholders !!</strong>
 
 ## Change Log<a name="changelog"/>
 
@@ -147,13 +147,13 @@ Example for settings in an item.conf file :
         type = bool
         alexa_name = "Licht Büro"
         alexa_description = "Licht Büro"
-	alexa_actions = "TurnOn TurnOff"
+		alexa_actions = "TurnOn TurnOff"
         alexa_icon = "LIGHT"
         alexa_cmd_01 = "True:EchoDotKueche:StartTuneInStation:s96141"
         alexa_cmd_02 = "True:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist eingeschalten"
-	alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
-	alexa_cmd_04 = "False:EchoDotKueche:Pause: "		
-        visu_acl = rw
+		alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
+		alexa_cmd_04 = "False:EchoDotKueche:Pause: "
+    	visu_acl = rw
         knx_dpt = 1
         knx_listen = 1/1/105
         knx_send = 1/1/105
@@ -168,6 +168,10 @@ Right now no logics are implemented. But you can trigger the items by your own l
 No methods are implemented
 
 # Web-Interface <a name="webinterface"/></a>
+
+The Webinterface is reachable on you smarthomeNG server here :<br>
+
+<strong>yourserver:8383/alexarc4shng/</strong>
 
 ## Cookie-Handling
 
@@ -238,6 +242,6 @@ If your TuneIn.com URL is 'http://tunein.com/radio/tuneinstation-s######/', then
 
 The idea for writing this plugin came from henfri. Got most of the informations from : http://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html (German). Thank you Alex! A lot of code came from Ingo. He has done the alexa iobrokern implementation https://github.com/Apollon77 Thank you Ingo ! Also a lot of informations come from for the open-hab2 implemenation! Thank you [Michael](https://community.openhab.org/t/released-openhab2-amazon-echo-control-binding-controlling-alexa-from-openhab2/37844)
 #### !! So many thanks for the very good research and development)
-##Trademark Disclaimer
+## Trademark Disclaimer
 
 TuneIn, Amazon Echo, Amazon Echo Spot, Amazon Echo Show, Amazon Music, Amazon Prime, Alexa and all other products and Amazon, TuneIn and other companies are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
