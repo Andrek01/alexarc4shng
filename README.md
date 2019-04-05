@@ -35,11 +35,11 @@ This plugin for smarthomeNG is mainly based on the informations of
 
 ### Placeholders :<a name="placeholders"/></a>
 ```
-<mValue>				= Value to send
+<mValue>			= Value to send
 <serialNumber>			= SerialNo. of the device where the command should go to
-<familiy>				= device family
+<familiy>			= device family
 <deviceType>			= deviceType
-<deviceOwnerCustomerId>	= OwnerID of the device
+<deviceOwnerCustomerId>		= OwnerID of the device
 ```
 #### <strong>!! Please keep in mind to use the "<" and the ">" the qualify the placeholders !!</strong>
 
