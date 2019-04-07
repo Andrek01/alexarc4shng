@@ -35,7 +35,9 @@ This plugin for smarthomeNG is mainly based on the informations of
 
 ### Placeholders :<a name="placeholders"/></a>
 ```
-<mValue>			= Value to send
+<mValue>			= Value to send as alpha
+<nValue>			= Value to send as numeric
+
 <serialNumber>			= SerialNo. of the device where the command should go to
 <familiy>			= device family
 <deviceType>			= deviceType
@@ -226,6 +228,12 @@ For some commands you need to now the payload. You can get this by spying out th
 <serialNumber>
 <serialNumber>
 <family>
+
+!!  for the Values !!
+
+<mValue> (for alpha Values)
+<nValue> (for numeric Values )
+
 ```
 
 ## Tips for existing Command-Lets :<a name="tipps"/></a>
