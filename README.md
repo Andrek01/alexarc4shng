@@ -182,9 +182,12 @@ it to the textarea in the Web-Interface and Store it.
 
 Now the available devices from your alexa-account will be discoverd an shown on the second tab.
 
+![PlaceHolder](./assets/webif1.jpg  "jpg")
+
 ## Alexa devices
 
 By click on one device the device will be selected as acutal device for tests.
+![PlaceHolder](./assets/webif2.jpg  "jpg")
 
 ## Command-Handling
 
@@ -194,6 +197,9 @@ Here you can define new Command-Lets, test them, save and delete them.
 You can check the JSON-Structure of you payload.
 
 When you click on an existing Command-Let it will be load to the Web-Interface.
+
+![PlaceHolder](./assets/webif3.jpg  "jpg")
+<br>
 
 ## How to create new Command-Lets (spy out the Amazon-Web-Interface)<a name="newCommand"/></a>
 
