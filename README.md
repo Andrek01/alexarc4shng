@@ -14,6 +14,8 @@ In the API-URL and in the json-payload you have to replace the real values from 
 
 This plugin for smarthomeNG is mainly based on the informations of
 [Lötzimmer](https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html) ,[Apollon77](https://github.com/Apollon77/alexa-remote) and the  [openhab2](https://community.openhab.org/t/released-openhab2-amazon-echo-control-binding-controlling-alexa-from-openhab2/37844)
+
+Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an evenning to support my with SSML.
 #### !! So many thanks for the very good research and development in the past !!
 
 ## table of content
@@ -21,36 +23,50 @@ This plugin for smarthomeNG is mainly based on the informations of
 1. [PlaceHolders](#placeholders)
 2. [Change Log](#changelog)
 3. [Requirements](#requirements)
-4. [Configuration](#config)
-4. [Web-Interface](#webinterface)
-4. [How to implmentend new Commands](#newCommand)
-5. [Tips for existing Command-Lets](#tipps)
+4. [Cookie](#cookie)
+5. [Configuration](#config)
+6. [Web-Interface](#webinterface)
+7. [How to implmentend new Commands](#newCommand)
+8. [Tips for existing Command-Lets](#tipps)
 
 ### Existing Command-Lets
+
 
 - Play (Plays the last paused Media)
 - Pause (pauses the actual media)
 - Text2Speech (sends a Text to the echo, echo will speak it)
 - StartTuneInStation (starts a TuneInRadiostation with the guideID you send)
+- SSML (Speak to Text with[Speech Synthesis Markup Language](https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html))
+- VolumeAdj (adjusts the volume during playing some media not working from webinterface test functions)
+- VolumeSet (sets the volume to value from 0-100 percent)
 
 ### Placeholders :<a name="placeholders"/></a>
 ```
 <mValue>			= Value to send as alpha
 <nValue>			= Value to send as numeric
+#item.path/# 		= item-path of the value that should be inserted into text or ssml
 
 <serialNumber>			= SerialNo. of the device where the command should go to
 <familiy>			= device family
 <deviceType>			= deviceType
 <deviceOwnerCustomerId>		= OwnerID of the device
 ```
-#### <strong>!! Please keep in mind to use the "<" and the ">" the qualify the placeholders !!</strong>
+#### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
-## Change Log<a name="changelog"/>
+## ChangeLog<a name="changelog"/>
 
+#### 2018.04.30 - Version 1.0.0
+- added CommandLet for SSML-Support
+- added CommandLet for Play (Plays the paused media)
+- added CommandLet for Pause (pauses media)
+- added CommandLet for VolumeAdj (only working while media is playing, not working from test functions on the webinterface)
+- added CommandLet for VolumeSet (working all the time)
+- added CommandLet for LoadPlayerInfo (right now loaded but nowhere stored)
+- added Item to enable AlexaRemoteControl by UZSU
 
 ### Changes Since version 1.x.x
 
-- no changes, first Release
+- no Changes, first Version
 
 
 
@@ -59,28 +75,55 @@ This plugin for smarthomeNG is mainly based on the informations of
 
 ### Needed software
 
-* the plugin need pycurl (pip install pycurl)
+* the plugin need pycurl (pip install pycurl or sudo -H pip install pycurl)
 * smarthomeNg 1.4.2 and above for the web-interface
+* a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
+
+
+If you get in trouble by installing pycurl, please try the following:
+```
+ sudo apt-get update
+ sudo apt-get install libcurl4-openssl-dev libssl-dev
+ sudo apt-get install python3-dev
+ wget https://dl.bintray.com/pycurl/pycurl/pycurl-7.43.0.2.tar.gz sudo chmod 777 pycurl-7.43.0.2.tar.gz
+ tar -zxvf pycurl-7.43.0.2.tar.gz cd pycurl-7.43.0.2
+ sudo apt-get upgrade sudo python3 setup.py install
+
+```
 
 
 ### Supported Hardware
 
 * all that supports smartHomeNG
 
+## Cookie <a name="cookie"/>
+
+First you have to install a plugin for your browser to export the cookies. For Firefox you will find a plugin [here](https://addons.mozilla.org/de/firefox/addon/cookies-txt/)
+Plugins are available for most of the common browsers.
+After installing the plugin you have to login to your alexa.amazon-Web console. Now Export the cookie by using the plugin.
+Open the cookie-file with a Texteditor select all and copy it to the clipboard.
+Go to the Webinterface of the plugin and paste the content of the cookie-file to the textarea on Tab "Cookie-Handling". Store the cookie.
+When the cookie was successfull stored you can find you Echo-Devices on the Tab with the Alexa-devices.
+
 
 ## Configuration<a name="config"/>
 
 ### plugin.yaml
 
-The plugin needs to be defined in the plugin.yaml in this way. The attributes are : <br> class_name -> fix <br> class_path -> fix (depending on you configuration) <br> cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache<br>host -> the adress of you Alexa-WebInterface
+The plugin needs to be defined in the /etc/plugin.yaml in this way.<br> The attributes are : <br> class_name -> fix <br> class_path -> fix (depending on you configuration) <br> cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br>host -> the adress of you Alexa-WebInterface<br>Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7<br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login (for future releases)<br>
+LoginUpdateCycle->seconds to wait for automatic Login in to refresh the cookie (for future releases)
+
 
 
 ```yaml
-alexarc4shng:
-    class_name: alexarc4shng
-    class_path: plugins.alexarc4shng
-    cookiefile: '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
-    host:       'alexa.amazon.de'
+AlexaRc4shNG:
+    class_name			: AlexaRc4shNG
+    class_path			: plugins.alexarc4shng
+    cookiefile			: '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
+    host				: 'alexa.amazon.de'
+    Item2EnableAlexaRC 	: YourRoom.YourItem.Item
+    AlexaCredentials	: <User>:<PWD>
+    LoginUpdateCycle    : Seconds for automatic refresh the cookie (default 604800 = 7 days)
 ```
 
 
@@ -89,23 +132,43 @@ alexarc4shng:
 
 The configuration of the item are done in the following way :
 <strong><br><br>
-alexa_cmd_01: Value:EchoDevice:Commandlet:Value_to_Send
+alexa_cmd_01: comparison:EchoDevice:Commandlet:Value_to_Send
+</strong>
 
-Sampe to switch on a Radiostation by using TuneIN<br><br>
+### supported comparisons are :
+
+"True", "False" and for numeric values "<=",">=","=","<",">"
+
+#### Sample to switch on a Radiostation by using TuneIN<br><br>
 Value = True means the item() becomes "ON"<br>
 EchodotKueche = Devicename where the Command should be send to<br>
 StartTuneInStaion = Name of the Commandlet<br>
-S96141 = Value of the Radiostation (here S96141 = baden.fm)
+s96141 = Value of the Radiostation (here S96141 = baden.fm)
 
 example:
+`
 alexa_cmd_01: True:EchoDotKueche:StartTuneInStation:s96141
-</strong>
+`
+#### Sample to send Text with item-value included based on value lower then 20 degrees<br><br>
+
+Value = <20.0 - send command when value of the item becomes less then 20.0<br>
+EchodotKueche = Devicename where the Command should be send to<br>
+Text2Speech = Name of the Commandlet<br>
+Value_to_Send = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt <strong>#test.testzimmer.temperature.actual/#</strong> Grad
+
+
+`#test.testzimmer.temperature.actual/# = item-path of the value that should be inserted`
+
+<strong>example:<br></strong>
+`alexa_cmd_01: "<20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad"`
+
+You can find the paths of the items on the backend-WebInterface - section items.
 
 #### alexa_cmd_XX
 
 You can specify up to 99 Commands per shng-item. The plugin scanns the item.conf/item.yaml during initialization for commands starting with 01 up to 99.
 
-<strong>Please start all the time with 01, the command-numbers must be serial, dont forget one. The scann of commands stops when there is no command found with the next number</strong>
+<strong>Please start all the time with 01 per item, the command-numbers must be serial, dont forget one. The scan of commands stops when there is no command found with the next number</strong>
 
 #### Example
 
@@ -198,6 +261,10 @@ You can check the JSON-Structure of you payload.
 
 When you click on an existing Command-Let it will be load to the Web-Interface.
 
+You can enter test values in the field for the values. Press Test and the command will be send to the device. You get back the HTTP-Status of the Request.
+
+<strong>For test dont modify the payload, just use the test-value-field </strong>
+
 ![PlaceHolder](./assets/webif3.jpg  "jpg")
 <br>
 
@@ -245,16 +312,43 @@ For some commands you need to now the payload. You can get this by spying out th
 ## Tips for existing Command-Lets :<a name="tipps"/></a>
 
 #### TuneIn
-you have to specify the guideID from Amazom as stationID "mValue". Station-Names are not supported right now.
+You have to specify the guideID from Amazom as stationID "mValue". Station-Names are not supported right now.
 for example try the following:
 
 To locate your station ID, search for your station on TuneIn.com. Access your page and use the last set of digits of the resulting URL for your ID. For example:
 If your TuneIn.com URL is 'http://tunein.com/radio/tuneinstation-s######/', then your station ID would be 's######'
 (https://help.tunein.com/what-is-my-station-or-program-id-SJbg90quwz)
 
+#### SSML
+You have to put the SSML-Values into
+```
+<speak> </speak>
+```
+
+Find complete documentation to SSML [here](https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html)
+
+example :
+```
+<speak>
+I want to tell you a secret.<amazon:effect name="whispered">I am not a real human.</amazon:effect>.
+    Can you believe it?
+</speak>
+```
+
+You can also use [SpeechCons](https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-german.html#including-a-speechcon-in-the-text-to-speech-response)
+
+example
+```
+<speak>
+    Here is an example of a speechcon. 
+    <say-as interpret-as="interjection">ach du liebe zeit.</say-as>.
+</speak>
+```
 ## Credits
 
 The idea for writing this plugin came from henfri. Got most of the informations from : http://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html (German). Thank you Alex! A lot of code came from Ingo. He has done the alexa iobrokern implementation https://github.com/Apollon77 Thank you Ingo ! Also a lot of informations come from for the open-hab2 implemenation! Thank you [Michael](https://community.openhab.org/t/released-openhab2-amazon-echo-control-binding-controlling-alexa-from-openhab2/37844)
+
+Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an evenning to support my with SSML. Thank you Andre.
 #### !! So many thanks for the very good research and development)
 ## Trademark Disclaimer
 

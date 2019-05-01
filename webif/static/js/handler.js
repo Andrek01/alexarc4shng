@@ -5,6 +5,48 @@ var selectedDevice;
 
 
 //*******************************************
+// Button Handler LogIn to Amazon-Site
+//*******************************************
+
+function BtnLogIn(result)
+{
+	$.ajax({
+		url: "logIn.html",
+		type: "GET",
+		data: {} ,
+		contentType: "application/json; charset=utf-8",
+		success: function (response) {
+			document.getElementById("txt_Result").innerHTML = response;
+		},
+		error: function () {
+			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
+		}
+	});
+  return
+}
+
+//*******************************************
+// Button Handler LogOff from Amazon-Site
+//*******************************************
+
+function BtnLogOff(result)
+{
+	$.ajax({
+		url: "logOff.html",
+		type: "GET",
+		data: {} ,
+		contentType: "application/json; charset=utf-8",
+		success: function (response) {
+			document.getElementById("txt_Result").innerHTML = response;
+		},
+		error: function () {
+			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
+		}
+	});
+  return
+}
+
+//*******************************************
 // Button Handler for saving Commandlet
 //*******************************************
 
@@ -49,21 +91,23 @@ function BtnCheck(result)
     document.getElementById("txtButton").value ="BtnCheck";
     try {
 	// Block of code to try
+	myValue = document.getElementById("txtValue").value
 	myPayload = myCodeMirrorConf.getValue();
+	myPayload = myPayload.replace("<mValue>",myValue);
 	var myTest = JSON.stringify(JSON.parse(myPayload),null,2)
 	myCodeMirrorConf.setValue(myTest);
 	myCodeMirrorConf.focus;
 	myCodeMirrorConf.setCursor(myCodeMirrorConf.lineCount(),0);
 	document.getElementById("txtresult").value = "JSON-Structure is OK";
-	document.getElementById("resultOK").style.visibility='visible';
-	document.getElementById("resultNOK").style.visibility='hidden';
+	document.getElementById("resultOK").style.visibility="visible";
+	document.getElementById("resultNOK").style.visibility="hidden";
 	
         }
     catch(err) {
          // Block of code to handle errors
 	document.getElementById("txtresult").value = "JSON-Structure is not OK\n"+err;
-	document.getElementById("resultOK").style.visibility='hidden';
-	document.getElementById("resultNOK").style.visibility='visible';
+	document.getElementById("resultOK").style.visibility="hidden";
+	document.getElementById("resultNOK").style.visibility="visible";
 	} 
 }
 
@@ -107,6 +151,8 @@ function BtnTest(result)
 
 function BtnDelete(result)
 {
+   buildCmdSequence();
+   return
     var filetodelete = document.getElementById("txtCmdName").value;
     if (filetodelete == "") {
          alert ("No Command selected to delete, first select one");
@@ -152,14 +198,14 @@ for (x in objResponse[0])
 document.getElementById("txtresult").value = temp;
 if (myResult == "OK")
 {
- document.getElementById("resultOK").style.visibility='visible';
- document.getElementById("resultNOK").style.visibility='hidden';
+ document.getElementById("resultOK").style.visibility="visible";
+ document.getElementById("resultNOK").style.visibility="hidden";
  reloadCmds();
 }
 else
 {
- document.getElementById("resultOK").style.visibility='hidden';
- document.getElementById("resultNOK").style.visibility='visible';
+ document.getElementById("resultOK").style.visibility="hidden";
+ document.getElementById("resultNOK").style.visibility="visible";
 }
 
 }
@@ -170,8 +216,8 @@ else
 
 function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: 'handleButtons.html',
-		type: 'GET',
+		url: "handleButtons.html",
+		type: "GET",
 		data: { txtValue : txtValue,
 			selectedDevice:selectedDevice,
 			txtButton : "BtnTest",
@@ -179,14 +225,14 @@ function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDes
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
 			txtDescription : txtDescription} ,
-		contentType: 'application/json; charset=utf-8',
+		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
 		},
 		error: function () {
 			document.getElementById("txtresult").value = "Error while Communication !";
-			document.getElementById("resultOK").style.visibility='hidden';
-			document.getElementById("resultNOK").style.visibility='visible';
+			document.getElementById("resultOK").style.visibility="hidden";
+			document.getElementById("resultNOK").style.visibility="visible";
 		}
 	});
   return
@@ -198,8 +244,8 @@ function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDes
 
 function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: 'handleButtons.html',
-		type: 'GET',
+		url: "handleButtons.html",
+		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:selectedDevice,
 			txtButton : "BtnSave",
@@ -207,14 +253,14 @@ function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDe
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
 			txtDescription : txtDescription} ,
-		contentType: 'application/json; charset=utf-8',
+		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
 		},
 		error: function () {
 			document.getElementById("txtresult").value = "Error while Communication !";
-			document.getElementById("resultOK").style.visibility='hidden';
-			document.getElementById("resultNOK").style.visibility='visible';
+			document.getElementById("resultOK").style.visibility="hidden";
+			document.getElementById("resultNOK").style.visibility="visible";
 		}
 	});
   return
@@ -226,8 +272,8 @@ function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDe
 
 function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: 'handleButtons.html',
-		type: 'GET',
+		url: "handleButtons.html",
+		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:selectedDevice,
 			txtButton : "BtnDelete",
@@ -235,14 +281,14 @@ function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtD
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
 			txtDescription : txtDescription} ,
-		contentType: 'application/json; charset=utf-8',
+		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
 		},
 		error: function () {
 			document.getElementById("txtresult").value = "Error while Communication !";
-			document.getElementById("resultOK").style.visibility='hidden';
-			document.getElementById("resultNOK").style.visibility='visible';
+			document.getElementById("resultOK").style.visibility="hidden";
+			document.getElementById("resultNOK").style.visibility="visible";
 		}
 	});
   return
@@ -256,9 +302,9 @@ function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtD
 function SelectCmd()
 {
 
-//$('#AlexaDevices').on('click', 'tr',function()
+//$("#AlexaDevices").on("click", "tr",function()
   
-   var value = $(this).closest('tr').find('td').first().text();
+   var value = $(this).closest("tr").find("td").first().text();
 
    if (value != "") {
 	alert(value);
@@ -274,21 +320,21 @@ function SelectCmd()
 function BuildCmdList(result)
 {
 
-    var temp ='';
-    temp = '<div class="table-responsive" id="tableCommands" href="#" onclick="SelectCmd();  style="min-width: 30px;"><table class="table table-striped table-hover">';
-    temp = temp + '<thead><tr class="shng_heading"><th class="py-1">Command-Name</th></tr></thead>';
-    temp = temp + '<tbody>';
+    var temp ="";
+    temp = "<div class='table-responsive' id='tableCommands' href='#' onclick='SelectCmd()'  style=min-width: 30px;><table class='table table-striped table-hover'>";
+    temp = temp + "<thead><tr class='shng_heading'><th class='py-1'>Command-Name</th></tr></thead>";
+    temp = temp + "<tbody>";
 	
     $.each(result, function(index, element) {
-        temp = temp + '<a href="SelectListItem"><tr><td class="py-1">'+ element.Name + '</td></tr>';
+        temp = temp + "<a href='SelectListItem'><tr><td class='py-1'>"+ element.Name + "</td></tr>";
     	        
     })
-    temp = temp + '</tbody></table></div>';
+    temp = temp + "</tbody></table></div>";
     $('#Cmds').html(temp);
 
-    $('#tableCommands').on('click', 'tr',function()
+    $('#tableCommands').on("click", "tr",function()
      {
-       var value = $(this).closest('tr').find('td').first().text();
+       var value = $(this).closest("tr").find("td").first().text();
        if (value != "") {
        LoadCommand(value);
      }
@@ -305,17 +351,17 @@ function BuildCmdList(result)
 
 function reloadCmds()
 {
-        $('#refresh-element').addClass('fa-spin');
-        $('#reload-element').addClass('fa-spin');
-        $('#cardOverlay').show();
-        $.getJSON('BuildCmdList_html', function(result)
+        $("#refresh-element").addClass("fa-spin");
+        $("#reload-element").addClass("fa-spin");
+        $("#cardOverlay").show();
+        $.getJSON("BuildCmdList_html", function(result)
         		{
 	        	BuildCmdList(result);
 	            window.setTimeout(function()
 	            		{
-		                $('#refresh-element').removeClass('fa-spin');
-		                $('#reload-element').removeClass('fa-spin');
-		                $('#cardOverlay').hide();
+		                $("#refresh-element").removeClass("fa-spin");
+		                $("#reload-element").removeClass("fa-spin");
+		                $("#cardOverlay").hide();
 	            		}, 300);
 
         		});
@@ -328,8 +374,8 @@ function reloadCmds()
 function LoadCommand(txtCmdName)
 {
 	$.ajax({
-		url: 'handleButtons.html',
-		type: 'GET',
+		url: "handleButtons.html",
+		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:"",
 			txtButton : "BtnLoad",
@@ -337,14 +383,14 @@ function LoadCommand(txtCmdName)
 			txtCmdName : txtCmdName,
 			txtApiUrl : "",
 			txtDescription : ""} ,
-		contentType: 'application/json; charset=utf-8',
+		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ShowCommand(response,txtCmdName);
 		},
 		error: function () {
 			document.getElementById("txtresult").value = "Error while Communication !";
-			document.getElementById("resultOK").style.visibility='hidden';
-			document.getElementById("resultNOK").style.visibility='visible';
+			document.getElementById("resultOK").style.visibility="hidden";
+			document.getElementById("resultNOK").style.visibility="visible";
 		}
 	});
   return
@@ -390,14 +436,15 @@ function ShowCommand(response,txtCmdName)
 	document.getElementById("txtresult").value = myResult;
 	if (myResult == "OK")
 	{
-	 document.getElementById("resultOK").style.visibility='visible';
-	 document.getElementById("resultNOK").style.visibility='hidden';
+	 document.getElementById("resultOK").style.visibility="visible";
+	 document.getElementById("resultNOK").style.visibility="hidden";
 	 reloadCmds();
 	}
 	else
 	{
-	 document.getElementById("resultOK").style.visibility='hidden';
-	 document.getElementById("resultNOK").style.visibility='visible';
+	 document.getElementById("resultOK").style.visibility="hidden";
+	 document.getElementById("resultNOK").style.visibility="visible";
 	}
 }
+
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # vim: set encoding=utf-8 tabstop=4 softtabstop=4 shiftwidth=4 expandtab
 #########################################################################
-#  Copyright 2017 <AUTHOR>                                        <EMAIL>
+#  Copyright 2019 AndreK                    andre.kohler01@googlemail.com
 #########################################################################
 #  This file is part of SmartHomeNG.   
 #
@@ -34,6 +34,8 @@ import json
 import sys
 import os
 import re
+import urllib3
+import time
 
 
 
@@ -94,6 +96,8 @@ class Echo(object):
         self.family = ""
         self.deviceType = ""
         self.deviceOwnerCustomerId = ""
+        self.playerinfo = {}
+        self.queueinfo = {}
 
 ##############################################################################
 
@@ -107,8 +111,7 @@ class alexarc4shng(SmartPlugin):
 
     PLUGIN_VERSION = '1.0.0'
 
-    def __init__(self, sh, cookiefile = '', host =''):
-        
+    def __init__(self, sh, cookiefile = '', host ='',Item2EnableAlexaRC='',AlexaCredentials='',LoginUpdateCycle=604800):
         self.logger = logging.getLogger(__name__)
         self.sh = sh
         self.header = ''
@@ -118,6 +121,9 @@ class alexarc4shng(SmartPlugin):
         self.postfields=''
         self.host = host
         self.shngObjects = shngObjects()
+        self.AlexaEnableItem = Item2EnableAlexaRC
+        self.credentials = AlexaCredentials
+        self.LoginUpdateCycle = LoginUpdateCycle
         
         self.csrf = self.parseCookieFile(self.cookiefile)
         # Collect all devices
@@ -135,7 +141,7 @@ class alexarc4shng(SmartPlugin):
         self.logger.info("Plugin '{}': start method called".format(self.get_fullname()))
         self.alive = True
         while self.alive == True:
-            sleep(2)
+            time.sleep(2)
         # if you want to create child threads, do not make them daemon = True!
         # They will not shutdown properly. (It's a python bug)
 
@@ -165,8 +171,9 @@ class alexarc4shng(SmartPlugin):
         
         myValue = 'alexa_cmd_{}'.format( '%0.2d' %(i))
         while myValue in item.conf:
+            
 
-            self.logger.debug("Plugin '{}': parse item: {}".format(self.get_fullname(), item))
+            self.logger.debug("Plugin '{}': parse item: {} Command {}".format(self.get_fullname(), item,myValue))
             
             CmdItem_ID = item._name
             try:
@@ -183,6 +190,7 @@ class alexarc4shng(SmartPlugin):
                 
                 actDevice.Commands[actCommand].command = item.conf[myValue]
                 myCommand = actDevice.Commands[actCommand].command.split(":")
+                self.logger.info("Plugin '{}': parse item: {}".format(self.get_fullname(), item.conf[myValue]))
                 
                 actDevice.Commands[actCommand].ItemValue = myCommand[0]
                 actDevice.Commands[actCommand].EndPoint = myCommand[1]
@@ -223,10 +231,35 @@ class alexarc4shng(SmartPlugin):
         # change 'foo_itemtag' into your attribute name
         
         # Item was not changed but double triggered the Upate_Item-Function
-        newValue=str(item())
-        oldValue=str(item.prev_value())
-        if(item.prev_value()==item()):
-            return 
+        if (self.AlexaEnableItem != ""):
+            AlexaEnabledItem = self.sh.return_item(self.AlexaEnableItem)
+            AlexaEnabled = AlexaEnabledItem()
+            if AlexaEnabled != True:
+                return
+        
+        if item._type == "str":
+            newValue=str(item())
+            oldValue=str(item.prev_value())
+        elif item._type =="num":
+            newValue=float(item())
+            oldValue=float(item.prev_value())
+        else:
+            newValue=str(item())
+            oldValue=str(item.prev_value())
+        
+        # Nur bei Wertänderung, sonst nix wie raus hier
+        if(oldValue == newValue):
+            return         
+        
+        
+        try:
+            myEchos = self.sh.alexarc4shng.Echos.all()
+            
+        except Exception as err:
+            self.logger.debug("Error while getting Echos :",err)
+        # End Test
+        
+
         
         CmdItem_ID = item._name
         
@@ -236,17 +269,121 @@ class alexarc4shng(SmartPlugin):
                 "Plugin '{}': update_item ws called with item '{}' from caller '{}', source '{}' and dest '{}'".format(
                     self.get_fullname(), item, caller, source, dest))
             
-            
-            actValue = str(item())
-            
             actDevice = self.shngObjects.get(CmdItem_ID)
             
             for myCommand in actDevice.Commands:
                 
+                newValue2Set = myCommand.Value
+                myItemBuffer = myCommand.ItemValue
+                # Spezialfall auf bigger / smaller
+                if myCommand.ItemValue.find("<=") >=0:
+                    actValue = "<="
+                    myCompValue = myCommand.ItemValue.replace("<="," ")
+                    myCompValue = myCompValue.replace(".",",")
+                    myCompValue = float(myCompValue)
+                    myCommand.ItemValue = actValue                    
+                    if  newValue > myCompValue:
+                        return
+                elif myCommand.ItemValue.find(">=") >=0:
+                    actValue = ">="
+                    myCompValue = myCommand.ItemValue.replace(">="," ")
+                    myCompValue = myCompValue.replace(".",",")
+                    myCompValue = float(myCompValue)
+                    myCommand.ItemValue = actValue        
+                    if newValue < myCompValue:
+                        return
+                elif myCommand.ItemValue.find("=") >=0 :
+                    actValue = "="
+                    myCompValue = myCommand.ItemValue.replace("="," ")
+                    myCompValue = myCompValue.replace(".",",")
+                    myCompValue = float(myCompValue)
+                    myCommand.ItemValue = actValue                    
+                    if newValue != myCompValue:
+                        return
+                elif myCommand.ItemValue.find("<") >=0:
+                    actValue = "<"
+                    myCompValue = myCommand.ItemValue.replace("<"," ")
+                    myCompValue = myCompValue.replace(".",",")
+                    myCompValue = float(myCompValue)
+                    myCommand.ItemValue = actValue
+                    if newValue >= myCompValue :
+                        return
+                elif myCommand.ItemValue.find(">") >=0:
+                    actValue = ">"
+                    myCompValue = myCommand.ItemValue.replace(">"," ")
+                    myCompValue = myCompValue.replace(".",",")
+                    myCompValue = float(myCompValue)
+                    myCommand.ItemValue = actValue
+                    if  newValue <= myCompValue:
+                        return
+                else:
+                    actValue = str(item())
+                    
+                if ("volume" in myCommand.Action.lower()):
+                    httpStatus, myPlayerInfo = self.ReceiveInfoByCurl(myCommand.EndPoint,"LoadPlayerInfo","")
+                    # Store Player-Infos to Device
+                    if httpStatus == 200:
+                        myActEcho = self.Echos.get(myCommand.EndPoint)
+                        myActEcho.playerinfo = myPlayerInfo['playerInfo']
+                        actVolume = self.search(myPlayerInfo, "volume")
+                        actVolume = self.search(actVolume, "volume")
+                    else:
+                        try:
+                            actVolume = int(item())
+                        except:
+                            actVolume = 50
+                        
+                if ("volumeadj" in myCommand.Action.lower()):
+                    myDelta = int(myCommand.Value)
+                    if actVolume+myDelta < 0:
+                        newValue2Set = 0
+                    elif actVolume+myDelta > 100:
+                        newValue2Set = 100
+                    else:
+                        newValue2Set =actVolume+myDelta
+                
+                # neuen Wert speichern in item
+                if ("volume" in myCommand.Action.lower()):
+                    item._value = newValue2Set
+                    
+
                 if (actValue == str(myCommand.ItemValue) and myCommand):
-                    self.SendCmdByCurl(myCommand.EndPoint,myCommand.Action,myCommand.Value)
+                    myCommand.ItemValue = myItemBuffer
+                    self.SendCmdByCurl(myCommand.EndPoint,myCommand.Action,newValue2Set)
 
+    
+    
+    # find Value for Key in Json-structure
+    # needed for Alexa Payload V3
+    
+    def search(self,p, strsearch):
+        if type(p) is dict:  
+            if strsearch in p:
+                tokenvalue = p[strsearch]
+                if not tokenvalue is None:
+                 return tokenvalue
+            else:
+                for i in p:
+                    tokenvalue = self.search(p[i], strsearch)  
+                    if not tokenvalue is None:
+                        return tokenvalue
+    
+    
+    def ReplaceMutatedVowel(self,mValue):
+        # prüfen auf Sonderzeichen
+        search =  ["ä" , "ö" , "ü" , "ß" , "Ä" , "Ö", "Ü",  "&"  , "é", "á", "ó"]
+        replace = ["ae", "oe", "ue", "ss", "Ae", "Oe","Ue", "und", "e", "a", "o"]
 
+        counter = 0
+        myNewValue = mValue
+        for Replacement in search:
+            myNewValue = myNewValue.replace(search[counter],replace[counter])
+            counter +=1
+        
+        return myNewValue
+        # Ende der Prüfung
+
+    
         # PLEASE CHECK CODE HERE. The following was in the old skeleton.py and seems not to be 
         # valid any more 
         # # todo here: change 'plugin' to the plugin name
@@ -257,7 +394,79 @@ class alexarc4shng(SmartPlugin):
     # Help -Start Functions by pycurl
     ##############################################
     
+    def ReceiveInfoByCurl(self,dvName,cmdName,mValue):
+        buffer = BytesIO()
+        actEcho = self.Echos.get(dvName)
+        myUrl='https://'+self.host
+        myDescriptions = ''
+        myDict = {}
+        
+        
+        myDescription,myUrl,myDict = self.LoadCommandlet(cmdName,None)
+        # complete the URL
+        myUrl='https://'+self.host+myUrl
+        # replace the placeholders in URL
+        myUrl=self.ParseUrl(myUrl,
+                            mValue,
+                            actEcho.serialNumber,
+                            actEcho.family,
+                            actEcho.deviceType,
+                            actEcho.deviceOwnerCustomerId)
+        
+        # replace the placeholders in Payload
+        #myheaders=self.CreateCurlHeader()
+        myheaders=["Host: alexa.amazon.de",
+                   "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                   "Connection: keep-alive",
+                   "Content-Type: application/json; charset=UTF-8",
+                   "Accept-Language: en-US,en;q=0.5",
+                   "Referer: https://alexa.amazon.de/spa/index.html",
+                   "Origin: https://alexa.amazon.de",
+                   "DNT: 1"
+                  ] 
+    
+        myCurl = pycurl.Curl()
+        myCurl.setopt(myCurl.URL,myUrl)
+        myCurl.setopt(pycurl.HTTPHEADER, myheaders)
+        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile)
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
+        myCurl.setopt(pycurl.WRITEDATA , buffer)
+        myCurl.setopt(pycurl.HTTPGET,1)
+        myCurl.perform()
+        try:
+            body=buffer.getvalue()
+            mybody = body.decode()
+            myDict=json.loads(mybody)
+        except Exception as err:
+            self.logger.debug("Error while getting Player-Infos",err)
+        
+        self.logger.info('Status of ReceiveInfoByCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        
+        return myCurl.getinfo(myCurl.RESPONSE_CODE),myDict
+    
     def SendCmdByCurl(self,dvName, cmdName,mValue,path=None):
+        # Parse the value field for dynamic content
+        if (mValue.find("#") >= 0 and mValue.find("/#") >0):
+            FirstPos = mValue.find("#")
+            LastPos = mValue.find("/#",FirstPos)
+            myItemName = mValue[FirstPos+1:LastPos]
+            myItem=self.sh.return_item(myItemName)
+            
+            if myItem._type == "num":
+                myValue = str(myItem())
+                myValue = myValue.replace(".", ",")
+            elif myitem._type == "bool":
+                myValue = str(myItem())
+            else:
+                myValue = str(myItem())
+            mValue = mValue[0:FirstPos]+myValue+mValue[LastPos:LastPos-2]+mValue[LastPos+2:len(mValue)]
+
+        
+        
+        mValue = self.ReplaceMutatedVowel(mValue)
+        
+        
         buffer = BytesIO()
         actEcho = self.Echos.get(dvName)
         myUrl='https://'+self.host
@@ -293,10 +502,12 @@ class alexarc4shng(SmartPlugin):
         myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
         myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile)
         myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
-        myCurl.setopt(pycurl.WRITEDATA , buffer)
         myCurl.setopt(pycurl.POST,1)
-        if len(postfields) > 20:
-         myCurl.setopt(pycurl.POSTFIELDS,postfields)
+        try:
+            if len(postfields) > 20:
+                myCurl.setopt(pycurl.POSTFIELDS,postfields)
+        except Exception as err:
+            self.logger.info('Got Error by adding PostFields',err)
         myCurl.perform()
         self.logger.info('Status of SendCmdByCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
         
@@ -316,10 +527,13 @@ class alexarc4shng(SmartPlugin):
             myCurl.setopt(pycurl.HTTPGET,1)
             myCurl.perform()
             self.logger.info('Status of getDevicesbyCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+            
             body=buffer.getvalue()
             mybody = body.decode()
             myDict=json.loads(mybody)
             myDevices = EchoDevices()
+            
+            
         except Exception as err:
             self.logger.debug('Error while getting Devices',err)
             return None
@@ -367,8 +581,17 @@ class alexarc4shng(SmartPlugin):
         
         myDummy = myDummy.strip()
         myDummy=myDummy.replace(' ','')
-        myDummy=myDummy.replace('<mValue>',mValue)
-        
+        # for String
+        try:
+            myDummy=myDummy.replace('<mValue>',mValue)
+        except Exception as err:
+            print("no String")
+        # for Numbers
+        try:    
+            myDummy=myDummy.replace('"<nValue>"',mValue)
+        except Exception as err:
+            print("no Integer")
+            
         # Inject the Device informations
         myDummy=myDummy.replace('<serialNumber>',serialNumber)
         myDummy=myDummy.replace('<familiy>',familiy)
@@ -410,7 +633,16 @@ class alexarc4shng(SmartPlugin):
             
         myDummy = myDummy.strip()
         myDummy=myDummy.replace(' ','')
-        myDummy=myDummy.replace('<mValue>',mValue)
+        # for String
+        try:
+            myDummy=myDummy.replace('<mValue>',mValue)
+        except Exception as err:
+            print("no String")
+        # for Numbers
+        try:    
+            myDummy=myDummy.replace('"<nValue>"',str(mValue))
+        except Exception as err:
+            print("no Integer")
         
         # Inject the Device informations
         myDummy=myDummy.replace('<serialNumber>',serialNumber)
@@ -433,7 +665,7 @@ class alexarc4shng(SmartPlugin):
                     "Origin: https://alexa.amazon.de",
                     "csrf: "+ self.csrf,
                     "Cache-Control: no-cache"
-                ]
+                  ]
         return myheaders
     
     def LoadCommandlet(self,cmdName,path=None):
@@ -443,7 +675,7 @@ class alexarc4shng(SmartPlugin):
         retJson         = {}
         
         if path==None:
-            path="/usr/local/smarthome/plugins/alexarc4shng/cmd/"
+            path=os.getcwd()+"/plugins/alexarc4shng/cmd/"
             
         try:
             file=open(path+cmdName+'.cmd','r')
@@ -470,7 +702,8 @@ class alexarc4shng(SmartPlugin):
     
     def LoadCmdList(self):
         retValue=[]
-        files = os. listdir('/usr/local/smarthome/plugins/alexarc4shng/cmd/')
+        mypath = os.getcwd()
+        files = os. listdir(mypath+'/plugins/alexarc4shng/cmd/')
         for line in files:
             line=line.split(".")
             newCmd = {'Name':line[0]}
@@ -488,7 +721,7 @@ class alexarc4shng(SmartPlugin):
     def DeleteCmdLet(self,name):
         result = ""
         try:
-            os.remove("/usr/local/smarthome/plugins/alexarc4shng/cmd/"+name+'.cmd')
+            os.remove(os.getcwd()+"/plugins/alexarc4shng/cmd/"+name+'.cmd')
             result =  "Status:OK\n"
             result += "value1:File deleted\n"
         except Exception as err:
@@ -569,7 +802,7 @@ class alexarc4shng(SmartPlugin):
         
     def SaveCmdLet(self,name,description,payload,ApiURL,path=None):
         if path==None:
-            path="/usr/local/smarthome/plugins/alexarc4shng/cmd/"
+            path=os.getcwd()+"/plugins/alexarc4shng/cmd/"
         
         result = ""
         mydummy = ApiURL[0:1]
@@ -612,7 +845,208 @@ class alexarc4shng(SmartPlugin):
         myResponse.append(newEntry)        
         ##################
         return json.dumps(myResponse,sort_keys=True)
+    
+    def AutoLogin(self,user="",pwd=""):
+        if self.credentials != '':
+            dummy = self.credentials.split(":")
+            user = dummy[0]
+            pwd = dummy[1]
+        myResults= []
+        ## start - First Step - generate Session-ID
+        buffer = BytesIO()
+        myUrl='https://'+self.host
+        FirstHeader=["Accept-Language: de,en-US;q=0.7,en;q=0.3",
+                     "DNT: 1",
+                     "Upgrade-Insecure-Requests: 1",
+                     "Connection: keep-alive",
+                     "Content-Type: text/plain;charset=UTF-8",
+                    ] 
+    
+        myCurl = pycurl.Curl()
+        myCurl.setopt(pycurl.URL,myUrl)
+        myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+        myCurl.setopt(pycurl.HTTPHEADER, FirstHeader)
+        myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.HEADER,1)
+        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+        
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.WRITEDATA , buffer)
+        myCurl.perform()
+        
+        
+        content=buffer.getvalue()
+        content = content.decode()
+        
+        
+        header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+        headers=content[0:header_size]
+        content = content[header_size:len(content)]
+        self.logger.info('Status of Auto-Login First Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
+        myCurl.close()
+        ## done - First Step - generate Session-ID
+        
+        
+        ## Get the hidden values
+        myPostdata = ""
+        myFile = content.splitlines()
+        for myLine in myFile:
+            if myLine.find("hidden") > 0 and myLine.find("value") > 0:
+                myPostdata = myPostdata + myLine + "\n"
+        self.logger.info("parsed First Get for Login")
+        
+        # Get the Location-Referer    
             
+        
+        ## start - Second Step - login with form
+        # Get Session-ID from Cookie-File
+        actSessionID = ""
+        try:
+            with open (self.cookiefile+"_tmp", 'r') as fp:
+                for line in fp:
+                    if line.find('session-id')<0:
+                            continue
+                    if line.find('session-id-time')>0:
+                            continue
+                    if not re.match(r'^\#', line):
+                        lineFields = line.strip().split('\t')
+                        if len(lineFields) >= 7:
+                            actSessionID = lineFields[6]
+
+        except Exception as err:
+            self.logger.debug('Cookiefile could not be opened %s' % self.cookiefile+"_tmp")
+        
+        SecondHeader=["Accept-Language: de,en-US;q=0.7,en;q=0.3",
+                      "DNT: 1",
+                      "Upgrade-Insecure-Requests: 1",
+                      "Connection: keep-alive",
+                      "Content-Type: text/plain;charset=UTF-8",
+                      "Referer: " + myUrl + "/ap/signin/" + actSessionID
+                     ]
+        newUrl = myUrl+"/ap/signin"
+        
+        postdata = {}
+        postdata['email'] =user
+        postdata['password'] = pwd
+        
+        
+        #postfields = urllib.parse.urlencode(postfields)
+        #postfields = urllib.pathname2url(postfields)
+        #postfields = urllib.pathname2url(postfields)
+        postfields = urllib3.request.urlencode(postdata)
+         
+        postfields = self.ParseJson2Curl(postfields, '', '', '', '', '')
+        
+        myCurl = pycurl.Curl()
+        myCurl.setopt(pycurl.URL,newUrl)
+        myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+        myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.POST,1)
+        myCurl.setopt(pycurl.HEADER,1)
+        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+        myCurl.setopt(pycurl.HTTPHEADER, SecondHeader)
+        
+        myCurl.setopt(pycurl.POSTFIELDS,postfields)
+        
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
+        
+        myCurl.setopt(pycurl.WRITEDATA , buffer)
+        myCurl.perform()
+        content=buffer.getvalue()
+        content = content.decode()
+        
+        # schreiben in eine Datei
+        myFile = open("/tmp/amazon.html","w")
+        myFile.write(content)
+        myFile.close()
+        
+        header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+        headers=content[0:header_size]
+        content = content[header_size:len(content)]
+        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
+        self.logger.info('Status of Auto-Login Second Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myCurl.close()
+        ## done - Second Step - login with form
+        
+        ## start - third Step - get the csrf
+        ThirdHeader =["Accept-Language: de,en-US;q=0.7,en;q=0.3",
+                      "DNT: 1",
+                      "Connection: keep-alive",
+                      "Content-Type: text/plain;charset=UTF-8",
+                      "Referer: " + myUrl + "/spa/index.html",
+                      "Origin: "+ myUrl 
+                     ]
+        
+        newUrl = myUrl+"/api/language"
+        
+        myCurl = pycurl.Curl()
+        myCurl.setopt(pycurl.URL,newUrl)
+        myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+        myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.HEADER,1)
+        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+        myCurl.setopt(pycurl.HTTPHEADER, ThirdHeader)
+        
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
+        
+        myCurl.setopt(pycurl.WRITEDATA , buffer)
+        myCurl.perform()
+        
+        content=buffer.getvalue()
+        content = content.decode()
+        
+        header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+        headers=content[0:header_size]
+        content = content[header_size:len(content)]
+        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
+        self.logger.info('Status of Auto-Login Second Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myCurl.close()
+        ## done - third Step - get the csrf
+        
+    
+    
+    def LogOff(self):
+        buffer = BytesIO()
+        myUrl='https://'+self.host
+        FirstHeader=["DNT: 1",
+                     "Connection: keep-alive"
+                     "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                    ] 
+        try:
+            myCurl = pycurl.Curl()
+            myCurl.setopt(pycurl.URL,myUrl)
+            myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+            myCurl.setopt(pycurl.HTTPHEADER, FirstHeader)
+            myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+            myCurl.setopt(pycurl.ENCODING,  "gzip, deflate")
+            myCurl.setopt(pycurl.HEADER,1)
+            
+            #myCurl.setopt(pycurl.RETURNTRANSFER,1)
+            myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+            
+            myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
+            myCurl.setopt(pycurl.WRITEDATA , buffer)
+            myCurl.perform()
+        except Exception as err:
+            print(err)
+            
+            
+        myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
+        self.logger.info('Status of Auto-Login FirstStop: %d' % myResult)
+        myCurl.close()
+        if myResult == 200:
+            return "HTTP - " + str(myResult)+" successfully logged off"
+        else:
+            return "HTTP - " + str(myResult)+" Erro while logging off"
+        
+    
     ##############################################
     # Help - End Functions by pycurl
     ##############################################
@@ -698,6 +1132,18 @@ class WebInterface(SmartPluginWebIf):
                    plugin_info=self.plugin.get_info(), p=self.plugin,
                    **kwargs)
 
+    def SetCookiePic(self,CookieOK=False):
+        dstFile = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/plugin_logo.png'
+        srcGood = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_good.png'
+        srcBad = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_bad.png'
+        if os.path.isfile(dstFile):
+                os.remove(dstFile)
+        if CookieOK==True:
+            if os.path.isfile(srcGood):
+                os.popen('cp '+srcGood + ' ' + dstFile)
+        else:
+            if os.path.isfile(srcBad):
+                os.popen('cp '+srcBad + ' ' + dstFile)            
 
     @cherrypy.expose
     def index(self, reload=None):
@@ -708,6 +1154,10 @@ class WebInterface(SmartPluginWebIf):
 
         :return: contents of the template after beeing rendered
         """
+        if (self.plugin.csrf != 'N/A'):
+            self.SetCookiePic(True)
+        else:
+            self.SetCookiePic(False)
         
         myDevices = self.GetDeviceList()
         alexa_device_count = len(myDevices)
@@ -718,6 +1168,19 @@ class WebInterface(SmartPluginWebIf):
                            plugin_info=self.plugin.get_info(), p=self.plugin,
                            device_list=myDevices)
         '''
+   
+   
+    @cherrypy.expose
+    def logOff_html(self,txt_Result=None):
+        txt_Result=self.plugin.LogOff()
+        return json.dumps(txt_Result)
+    
+    @cherrypy.expose
+    def logIn_html(self,txt_Result=None):
+        txt_Result=self.plugin.AutoLogin()
+        return json.dumps(txt_Result)
+        
+                           
     @cherrypy.expose
     def handleButtons_html(self,txtValue=None, selectedDevice=None,txtButton=None,txt_payload=None,txtCmdName=None,txtApiUrl=None,txtDescription=None):
         if txtButton=="BtnSave":
@@ -776,6 +1239,13 @@ class WebInterface(SmartPluginWebIf):
             file.write(line+"\r\n")
         file.close()
         value1 = self.plugin.parseCookieFile("/tmp/cookie.txt")
+        
+        if (value1 != 'N/A'):
+            self.SetCookiePic(True)
+        else:
+            self.SetCookiePic(False)
+        
+        
         if (value1 == "N/A") :
             # Cookies not found give back an error
             tmpl = self.tplenv.get_template('index.html')
