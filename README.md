@@ -117,7 +117,7 @@ LoginUpdateCycle->seconds to wait for automatic Login in to refresh the cookie (
 
 ```yaml
 AlexaRc4shNG:
-    class_name			: AlexaRc4shNG
+    class_name			: alexarc4shng
     class_path			: plugins.alexarc4shng
     cookiefile			: '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
     host				: 'alexa.amazon.de'
