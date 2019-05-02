@@ -36,6 +36,7 @@ import os
 import re
 import urllib3
 import time
+import base64
 
 
 
@@ -111,23 +112,30 @@ class alexarc4shng(SmartPlugin):
 
     PLUGIN_VERSION = '1.0.0'
 
-    def __init__(self, sh, cookiefile = '', host ='',Item2EnableAlexaRC='',AlexaCredentials='',LoginUpdateCycle=604800):
+    def __init__(self, sh, *args, **kwargs):
         self.logger = logging.getLogger(__name__)
-        self.sh = sh
+        self.sh = self.get_sh()
         self.header = ''
-        self.cookiefile = cookiefile
         self.csrf = 'N/A'
-        self.a2s_csrf = 'N/A'
         self.postfields=''
-        self.host = host
         self.shngObjects = shngObjects()
-        self.AlexaEnableItem = Item2EnableAlexaRC
-        self.credentials = AlexaCredentials
-        self.LoginUpdateCycle = LoginUpdateCycle
+        self.Echos = self.getDevicesbyCurl()
+        
+        
+        self.cookiefile = self.get_parameter_value('cookiefile')
+        
+        
+        self.host = self.get_parameter_value('host')
+        
+        
+        self.AlexaEnableItem = self.get_parameter_value('Item2EnableAlexaRC')
+        self.credentials = self.get_parameter_value('AlexaCredentials').encode('utf-8')
+        self.credentials = base64.decodebytes(self.credentials).decode('utf-8')
+        self.LoginUpdateCycle = self.get_parameter_value('LoginUpdateCycle')
         
         self.csrf = self.parseCookieFile(self.cookiefile)
         # Collect all devices
-        self.Echos = self.getDevicesbyCurl()
+        
 
         if not self.init_webinterface():
             self._init_complete = False
@@ -140,8 +148,7 @@ class alexarc4shng(SmartPlugin):
         """
         self.logger.info("Plugin '{}': start method called".format(self.get_fullname()))
         self.alive = True
-        while self.alive == True:
-            time.sleep(2)
+        
         # if you want to create child threads, do not make them daemon = True!
         # They will not shutdown properly. (It's a python bug)
 
@@ -323,10 +330,13 @@ class alexarc4shng(SmartPlugin):
                     httpStatus, myPlayerInfo = self.ReceiveInfoByCurl(myCommand.EndPoint,"LoadPlayerInfo","")
                     # Store Player-Infos to Device
                     if httpStatus == 200:
-                        myActEcho = self.Echos.get(myCommand.EndPoint)
-                        myActEcho.playerinfo = myPlayerInfo['playerInfo']
-                        actVolume = self.search(myPlayerInfo, "volume")
-                        actVolume = self.search(actVolume, "volume")
+                        try:
+                            myActEcho = self.Echos.get(myCommand.EndPoint)
+                            myActEcho.playerinfo = myPlayerInfo['playerInfo']
+                            actVolume = self.search(myPlayerInfo, "volume")
+                            actVolume = self.search(actVolume, "volume")
+                        except:
+                            actVolume = 50
                     else:
                         try:
                             actVolume = int(item())
@@ -675,7 +685,7 @@ class alexarc4shng(SmartPlugin):
         retJson         = {}
         
         if path==None:
-            path=os.getcwd()+"/plugins/alexarc4shng/cmd/"
+            path=self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"
             
         try:
             file=open(path+cmdName+'.cmd','r')
@@ -702,12 +712,16 @@ class alexarc4shng(SmartPlugin):
     
     def LoadCmdList(self):
         retValue=[]
-        mypath = os.getcwd()
-        files = os. listdir(mypath+'/plugins/alexarc4shng/cmd/')
+        
+        files = os.listdir(self.sh.get_basedir()+'/plugins/alexarc4shng/cmd/')
         for line in files:
-            line=line.split(".")
-            newCmd = {'Name':line[0]}
-            retValue.append(newCmd)
+            try:
+                line=line.split(".")
+                if line[1] == "cmd":
+                    newCmd = {'Name':line[0]}
+                    retValue.append(newCmd)
+            except:
+                pass
         
         return json.dumps(retValue)
 
@@ -721,7 +735,7 @@ class alexarc4shng(SmartPlugin):
     def DeleteCmdLet(self,name):
         result = ""
         try:
-            os.remove(os.getcwd()+"/plugins/alexarc4shng/cmd/"+name+'.cmd')
+            os.remove(self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"+name+'.cmd')
             result =  "Status:OK\n"
             result += "value1:File deleted\n"
         except Exception as err:
@@ -802,7 +816,7 @@ class alexarc4shng(SmartPlugin):
         
     def SaveCmdLet(self,name,description,payload,ApiURL,path=None):
         if path==None:
-            path=os.getcwd()+"/plugins/alexarc4shng/cmd/"
+            path=self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"
         
         result = ""
         mydummy = ApiURL[0:1]
@@ -1133,9 +1147,9 @@ class WebInterface(SmartPluginWebIf):
                    **kwargs)
 
     def SetCookiePic(self,CookieOK=False):
-        dstFile = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/plugin_logo.png'
-        srcGood = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_good.png'
-        srcBad = os.getcwd()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_bad.png'
+        dstFile = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/plugin_logo.png'
+        srcGood = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_good.png'
+        srcBad = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_bad.png'
         if os.path.isfile(dstFile):
                 os.remove(dstFile)
         if CookieOK==True:
@@ -1251,7 +1265,7 @@ class WebInterface(SmartPluginWebIf):
             tmpl = self.tplenv.get_template('index.html')
             return tmpl.render(plugin_shortname=self.plugin.get_shortname(), plugin_version=self.plugin.get_version(),
                            plugin_info=self.plugin.get_info(), p=self.plugin,
-                           txt_Result='<font color="red"><i class="fas fa-exclamation-triangle"></i> Cookies are not saved missing csrf or a2s_csrf',
+                           txt_Result='<font color="red"><i class="fas fa-exclamation-triangle"></i> Cookies are not saved missing csrf',
                            cookie_txt=cookie_txt,
                            csrf_cookie=value1)
 
