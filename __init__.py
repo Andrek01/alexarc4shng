@@ -119,15 +119,9 @@ class alexarc4shng(SmartPlugin):
         self.csrf = 'N/A'
         self.postfields=''
         self.shngObjects = shngObjects()
-        self.Echos = self.getDevicesbyCurl()
-        
-        
+
         self.cookiefile = self.get_parameter_value('cookiefile')
-        
-        
         self.host = self.get_parameter_value('host')
-        
-        
         self.AlexaEnableItem = self.get_parameter_value('Item2EnableAlexaRC')
         self.credentials = self.get_parameter_value('AlexaCredentials').encode('utf-8')
         self.credentials = base64.decodebytes(self.credentials).decode('utf-8')
@@ -135,7 +129,7 @@ class alexarc4shng(SmartPlugin):
         
         self.csrf = self.parseCookieFile(self.cookiefile)
         # Collect all devices
-        
+        self.Echos = self.getDevicesbyCurl()
 
         if not self.init_webinterface():
             self._init_complete = False
