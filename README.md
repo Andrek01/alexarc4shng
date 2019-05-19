@@ -111,7 +111,7 @@ If you get in trouble by installing pycurl, please try the following:
 
 ## Cookie <a name="cookie"/>
 
-<strong> First possibility - without Credentials : </strong>
+<strong>First possibility - without Credentials : </strong>
 
 Plugins are available for most of the common browsers.
 After installing the plugin you have to login to your alexa.amazon-Web console. Now Export the cookie by using the plugin.
@@ -119,7 +119,7 @@ Open the cookie-file with a Texteditor select all and copy it to the clipboard.
 Go to the Webinterface of the plugin and paste the content of the cookie-file to the textarea on Tab "Cookie-Handling". Store the cookie.
 When the cookie was successfull stored you can find you Echo-Devices on the Tab with the Alexa-devices.
 
-***Second possibility - with Credentials:***
+<strong>Second possibility - with Credentials : </strong>
 
 When the plugin will be started and credentials are found in plugin.yaml, the plugin tests if the informations in the cookie-file are still guilty. If not the plugin tries to login with the credentials himself and stores the informations in the cookie-file. The cookie will updated in the cycle specified in "login_update_cycle" in the plugin.yaml
 
@@ -140,13 +140,13 @@ login_update_cycle->seconds to wait for automatic Login in to refresh the cookie
 
 ```yaml
 AlexaRc4shNG:
-    class_name			: alexarc4shng
-    class_path			: plugins.alexarc4shng
-    cookiefile			: '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
-    host				: 'alexa.amazon.de'
-    item_2_enable_alexa_rc 	: YourRoom.YourItem.Item
-    alexa_credentials	: <User>:<PWD>
-    login_update_cycle    : Seconds for automatic refresh the cookie (default 604800 = 7 days)
+    class_name              : alexarc4shng
+    class_path              : plugins.alexarc4shng
+    cookiefile              : '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
+    host                    : 'alexa.amazon.de'
+    item_2_enable_alexa_rc  : YourRoom.YourItem.Item
+    alexa_credentials       : <User>:<PWD>
+    login_update_cycle      : Seconds for automatic refresh the cookie (default 604800 = 7 days)
 ```
 
 
@@ -163,10 +163,12 @@ alexa_cmd_01: comparison:EchoDevice:Commandlet:Value_to_Send
 "True", "False" and for numeric values "<=",">=","=","<",">"
 
 #### Sample to switch on a Radiostation by using TuneIN<br><br>
+```yaml
 Value = True means the item() becomes "ON"<br>
 EchodotKueche = Devicename where the Command should be send to<br>
 StartTuneInStaion = Name of the Commandlet<br>
 s96141 = Value of the Radiostation (here S96141 = baden.fm)
+```
 
 example:
 `
@@ -259,6 +261,13 @@ The plugin provides the following publich functions. You can use it for example 
 
 ### send_cmd_by_curl(dvName, cmdName, mValue)
 
+example how to use in logics:
+
+```yaml
+sh.alexarc4shng.send_cmd_by_curl("yourDevice", "Text2Speech", "yourValue")
+---
+sh.alexarc4shng.send_cmd_by_curl('Kueche','Text2Speech','Der Sensor der Hebenlage signalisiert ein Problem.')
+```
 Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
 You can find all this informations on the Web-Interface.
 You can also user the [placeholders](#placeholders)
@@ -275,8 +284,9 @@ The Webinterface is reachable on you smarthomeNG server here :<br>
 
 ## Cookie-Handling
 
-On the Webinterface you can store you cookie-file to the shng-Server. Export it with a cookie.txt AddOn from the browser. Copy it to the clipboard. Paste
-it to the textarea in the Web-Interface and Store it.
+On the Webinterface you can store you cookie-file to the shng-Server.
+Export it with a cookie.txt AddOn from the browser. Copy it to the clipboard.
+Paste it to the textarea in the Web-Interface and Store it.
 
 Now the available devices from your alexa-account will be discoverd an shown on the second tab.
 
