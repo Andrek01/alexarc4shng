@@ -164,9 +164,8 @@ alexa_cmd_01: comparison:EchoDevice:Commandlet:Value_to_Send
 
 #### Sample to switch on a Radiostation by using TuneIN<br><br>
 ```yaml
-Value = True means the item() becomes "ON"<br>
-EchodotKueche = Devicename where the Command should be send to<br>
-StartTuneInStaion = Name of the Commandlet<br>
+Value = True means the item() becomes "ON"
+EchodotKueche = Devicename where the Command should be send to StartTuneInStaion = Name of the Commandlet<br>
 s96141 = Value of the Radiostation (here S96141 = baden.fm)
 ```
 
@@ -177,10 +176,10 @@ alexa_cmd_01: True:EchoDotKueche:StartTuneInStation:s96141
 #### Sample to send Text with item-value included based on value lower then 20 degrees<br><br>
 
 ```yaml
-Value = <20.0 - send command when value of the item becomes less then 20.0<br>
-EchodotKueche = Devicename where the Command should be send to<br>
-Text2Speech = Name of the Commandlet<br>
-Value_to_Send = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt <strong>#test.testzimmer.temperature.actual/#</strong> Grad #test.testzimmer.temperature.actual/# = item-path of the value that should be inserted
+Value           = <20.0 - send command when value of the item becomes less then 20.0
+EchodotKueche   = Devicename where the Command should be send to
+Text2Speech     = Name of the Commandlet
+Value_to_Send   = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad #test.testzimmer.temperature.actual/# = item-path of the value that should be inserted
 ```
 
 <strong>example:<br></strong>
