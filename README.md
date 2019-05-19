@@ -165,7 +165,7 @@ alexa_cmd_01: comparison:EchoDevice:Commandlet:Value_to_Send
 #### Sample to switch on a Radiostation by using TuneIN<br><br>
 ```yaml
 Value = True means the item() becomes "ON"
-EchodotKueche = Devicename where the Command should be send to StartTuneInStaion = Name of the Commandlet<br>
+EchodotKueche = Devicename where the Command should be send to StartTuneInStaion = Name of the Commandlet
 s96141 = Value of the Radiostation (here S96141 = baden.fm)
 ```
 
@@ -183,9 +183,9 @@ Value_to_Send   = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Tem
 ```
 
 <strong>example:<br></strong>
-
+`
 alexa_cmd_01: <20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt \#test.testzimmer.temperature.actual/\# Grad
-
+`
 
 You can find the paths of the items on the backend-WebInterface - section items.
 
