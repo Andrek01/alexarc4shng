@@ -254,7 +254,7 @@ Example for settings in an item.conf file :
 Right now no logics are implemented. But you can trigger the functions by your own logic
 
 
-## Plugin-functions <a name="#functions"/a>
+## Plugin-functions <a name="functions"/>
 
 The plugin provides the following publich functions. You can use it for example in logics.
 
