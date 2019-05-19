@@ -42,15 +42,14 @@ Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an even
 - VolumeSet (sets the volume to value from 0-100 percent)
 
 ### Placeholders :<a name="placeholders"/></a>
-```
-<mValue>			= Value to send as alpha
-<nValue>			= Value to send as numeric
-#item.path/# 		    = item-path of the value that should be inserted into text or ssml
-
-<serialNumber>			= SerialNo. of the device where the command should go to
-<familiy>			    = device family
-<deviceType>			= deviceType
-<deviceOwnerCustomerId>		= OwnerID of the device
+```yaml
+<mValue>                = Value to send as alpha
+<nValue>                = Value to send as numeric
+#item.path/#            = item-path of the value that should be inserted into text or ssml
+<serialNumber>          = SerialNo. of the device where the command should go to
+<familiy>               = device family
+<deviceType>            = deviceType
+<deviceOwnerCustomerId> = OwnerID of the device
 ```
 #### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
@@ -263,7 +262,6 @@ The plugin provides the following publich functions. You can use it for example 
 Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
 You can find all this informations on the Web-Interface.
 You can also user the [placeholders](#placeholders)
-[placeholders](#placeholders)
 
 - the result will be the HTTP-Status of the request as string (str)
 
