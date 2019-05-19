@@ -25,6 +25,9 @@
 
 from lib.module import Modules
 from lib.model.smartplugin import *
+from lib.item import Items
+from lib.scheduler import Scheduler
+from datetime import datetime
 
 
 from io import BytesIO
@@ -37,6 +40,8 @@ import re
 import urllib3
 import time
 import base64
+
+
 
 
 
@@ -110,26 +115,32 @@ class alexarc4shng(SmartPlugin):
     the update functions for the items
     """
 
-    PLUGIN_VERSION = '1.0.0'
+    PLUGIN_VERSION = '1.0.1'
 
     def __init__(self, sh, *args, **kwargs):
+        # get Instances
         self.logger = logging.getLogger(__name__)
         self.sh = self.get_sh()
+        self.items = Items.get_instance()
+        self.scheduler = Scheduler.get_instance()
+        self.shngObjects = shngObjects()
+        
+        # Init values
         self.header = ''
         self.csrf = 'N/A'
         self.postfields=''
-        self.shngObjects = shngObjects()
-
+        self.login_state = False
+        self.last_update_time = ''
+        self.next_update_time = ''
+        # get parameters
         self.cookiefile = self.get_parameter_value('cookiefile')
         self.host = self.get_parameter_value('host')
-        self.AlexaEnableItem = self.get_parameter_value('Item2EnableAlexaRC')
-        self.credentials = self.get_parameter_value('AlexaCredentials').encode('utf-8')
+        self.AlexaEnableItem = self.get_parameter_value('item_2_enable_alexa_rc')
+        self.credentials = self.get_parameter_value('alexa_credentials').encode('utf-8')
         self.credentials = base64.decodebytes(self.credentials).decode('utf-8')
-        self.LoginUpdateCycle = self.get_parameter_value('LoginUpdateCycle')
+        self.LoginUpdateCycle = self.get_parameter_value('login_update_cycle')
+        self.update_file=self.sh.get_basedir()+"/plugins/alexarc4shng/lastlogin.txt"
         
-        self.csrf = self.parseCookieFile(self.cookiefile)
-        # Collect all devices
-        self.Echos = self.getDevicesbyCurl()
 
         if not self.init_webinterface():
             self._init_complete = False
@@ -141,6 +152,32 @@ class alexarc4shng(SmartPlugin):
         Run method for the plugin
         """
         self.logger.info("Plugin '{}': start method called".format(self.get_fullname()))
+        # get additional parameters from files
+        self.csrf = self.parse_cookie_file(self.cookiefile)
+        
+        # Check login-state - if logged off and credentials are availabel login in
+        if os.path.isfile(self.cookiefile):
+            self.login_state=self.check_login_state()
+            self.check_refresh_login()
+        
+        if (self.login_state == False and self.credentials != ''):
+            try:
+                os.remove(self.update_file)
+            except:
+                pass
+            self.check_refresh_login()
+            self.login_state=self.check_login_state()
+        
+        # Collect all devices    
+        if (self.login_state):
+            self.Echos = self.get_devices_by_curl()
+        else:
+            self.Echos = None
+        # enable scheduler if Login should be updated automatically
+        
+        if self.credentials != '':
+            #self.scheduler_add('alexarc4shng.check_login', self.check_refresh_login,cycle=300)
+            self.scheduler.add('plugins.alexarc4shng.check_login', self.check_refresh_login,cycle=300,from_smartplugin=True)
         self.alive = True
         
         # if you want to create child threads, do not make them daemon = True!
@@ -151,6 +188,7 @@ class alexarc4shng(SmartPlugin):
         Stop method for the plugin
         """
         self.logger.debug("Plugin '{}': stop method called".format(self.get_fullname()))
+        self.scheduler_remove('alexarc4shng.check_login')
         self.alive = False
 
     def parse_item(self, item):
@@ -233,9 +271,8 @@ class alexarc4shng(SmartPlugin):
         
         # Item was not changed but double triggered the Upate_Item-Function
         if (self.AlexaEnableItem != ""):
-            AlexaEnabledItem = self.sh.return_item(self.AlexaEnableItem)
-            AlexaEnabled = AlexaEnabledItem()
-            if AlexaEnabled != True:
+            AlexaEnabledItem = self.items.return_item(self.AlexaEnableItem) 
+            if AlexaEnabledItem() != True:
                 return
         
         if item._type == "str":
@@ -321,7 +358,7 @@ class alexarc4shng(SmartPlugin):
                     actValue = str(item())
                     
                 if ("volume" in myCommand.Action.lower()):
-                    httpStatus, myPlayerInfo = self.ReceiveInfoByCurl(myCommand.EndPoint,"LoadPlayerInfo","")
+                    httpStatus, myPlayerInfo = self.receive_info_by_curl(myCommand.EndPoint,"LoadPlayerInfo","")
                     # Store Player-Infos to Device
                     if httpStatus == 200:
                         try:
@@ -353,7 +390,7 @@ class alexarc4shng(SmartPlugin):
 
                 if (actValue == str(myCommand.ItemValue) and myCommand):
                     myCommand.ItemValue = myItemBuffer
-                    self.SendCmdByCurl(myCommand.EndPoint,myCommand.Action,newValue2Set)
+                    self.send_cmd_by_curl(myCommand.EndPoint,myCommand.Action,newValue2Set)
 
     
     
@@ -372,8 +409,41 @@ class alexarc4shng(SmartPlugin):
                     if not tokenvalue is None:
                         return tokenvalue
     
+    # Check if update of login is needed
+    def check_refresh_login(self):
+        my_file= self.update_file
+        try:
+            with open (my_file, 'r') as fp:
+                for line in fp:
+                    last_update_time = float(line)
+            fp.close()
+        except:
+            last_update_time = 0
+        
+        mytime = time.time()
+        if (last_update_time + self.LoginUpdateCycle < mytime):
+            self.log_off()
+            self.auto_login()
+            
+            if not self.login_state:
+                mytime = 0
+            
+            file=open(my_file,"w")
+            file.write(str(mytime)+"\r\n")
+            file.close()
+            
+            # set actual values for web-interface
+            self.last_update_time = datetime.fromtimestamp(mytime).strftime('%Y-%m-%d %H:%M:%S')
+            self.next_update_time = datetime.fromtimestamp(mytime+self.LoginUpdateCycle).strftime('%Y-%m-%d %H:%M:%S')
+            self.logger.info('refreshed Login/Cookie: %s' % self.last_update_time)
+        else:
+            self.last_update_time = datetime.fromtimestamp(last_update_time).strftime('%Y-%m-%d %H:%M:%S')
+            self.next_update_time = datetime.fromtimestamp(last_update_time+self.LoginUpdateCycle).strftime('%Y-%m-%d %H:%M:%S')
+        
+        
     
-    def ReplaceMutatedVowel(self,mValue):
+    
+    def replace_mutated_vowel(self,mValue):
         # prüfen auf Sonderzeichen
         search =  ["ä" , "ö" , "ü" , "ß" , "Ä" , "Ö", "Ü",  "&"  , "é", "á", "ó"]
         replace = ["ae", "oe", "ue", "ss", "Ae", "Oe","Ue", "und", "e", "a", "o"]
@@ -398,7 +468,56 @@ class alexarc4shng(SmartPlugin):
     # Help -Start Functions by pycurl
     ##############################################
     
-    def ReceiveInfoByCurl(self,dvName,cmdName,mValue):
+    
+    def check_login_state(self):
+        myUrl='https://'+self.host+'/api/bootstrap?version=0'
+        myHeader = ['DNT: 1',
+                    'Connection :keep-alive',
+                    'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0'
+                   ]
+        try:
+            buffer = BytesIO()
+            myCurl = pycurl.Curl()
+            myCurl.setopt(myCurl.URL,myUrl)
+            myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+            myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile)
+            myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
+            myCurl.setopt(pycurl.ENCODING, "gzip, deflate");
+            myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+            myCurl.setopt(pycurl.HEADER,1)
+            myCurl.setopt(pycurl.WRITEDATA , buffer)
+            myCurl.setopt(pycurl.HTTPGET,1)
+            myCurl.perform()
+            
+            self.logger.info('Status of check_login_state: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+            
+            header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+            
+            myCurl.close()
+            
+            body=buffer.getvalue()
+            headers=body[0:header_size]
+            content = body[header_size:len(body)]
+            
+            mybody = content.decode()
+            headers = headers.decode()
+            myDict=json.loads(mybody)
+            myAuth =myDict['authentication']['authenticated']
+            if (myAuth == True):
+                self.logger.info('Login-State checked - Result: Logged ON' )
+                return True
+            else:
+                self.logger.info('Login-State checked - Result: Logged OFF' )
+                return False
+            
+            
+          
+            
+        except Exception as err:
+            self.logger.error('Error while checking login state: %s' %err)
+            return False
+    
+    def receive_info_by_curl(self,dvName,cmdName,mValue):
         buffer = BytesIO()
         actEcho = self.Echos.get(dvName)
         myUrl='https://'+self.host
@@ -406,11 +525,11 @@ class alexarc4shng(SmartPlugin):
         myDict = {}
         
         
-        myDescription,myUrl,myDict = self.LoadCommandlet(cmdName,None)
+        myDescription,myUrl,myDict = self.load_command_let(cmdName,None)
         # complete the URL
         myUrl='https://'+self.host+myUrl
         # replace the placeholders in URL
-        myUrl=self.ParseUrl(myUrl,
+        myUrl=self.parse_url(myUrl,
                             mValue,
                             actEcho.serialNumber,
                             actEcho.family,
@@ -418,7 +537,7 @@ class alexarc4shng(SmartPlugin):
                             actEcho.deviceOwnerCustomerId)
         
         # replace the placeholders in Payload
-        #myheaders=self.CreateCurlHeader()
+        #myheaders=self.create_curl_header()
         myheaders=["Host: alexa.amazon.de",
                    "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
                    "Connection: keep-alive",
@@ -445,11 +564,11 @@ class alexarc4shng(SmartPlugin):
         except Exception as err:
             self.logger.debug("Error while getting Player-Infos",err)
         
-        self.logger.info('Status of ReceiveInfoByCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        self.logger.info('Status of receive_info_by_curl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
         
         return myCurl.getinfo(myCurl.RESPONSE_CODE),myDict
     
-    def SendCmdByCurl(self,dvName, cmdName,mValue,path=None):
+    def send_cmd_by_curl(self,dvName, cmdName,mValue,path=None):
         # Parse the value field for dynamic content
         if (mValue.find("#") >= 0 and mValue.find("/#") >0):
             FirstPos = mValue.find("#")
@@ -468,7 +587,7 @@ class alexarc4shng(SmartPlugin):
 
         
         
-        mValue = self.ReplaceMutatedVowel(mValue)
+        mValue = self.replace_mutated_vowel(mValue)
         
         
         buffer = BytesIO()
@@ -478,11 +597,11 @@ class alexarc4shng(SmartPlugin):
         myDict = {}
         
         
-        myDescription,myUrl,myDict = self.LoadCommandlet(cmdName,path)
+        myDescription,myUrl,myDict = self.load_command_let(cmdName,path)
         # complete the URL
         myUrl='https://'+self.host+myUrl
         # replace the placeholders in URL
-        myUrl=self.ParseUrl(myUrl,
+        myUrl=self.parse_url(myUrl,
                             mValue,
                             actEcho.serialNumber,
                             actEcho.family,
@@ -490,8 +609,8 @@ class alexarc4shng(SmartPlugin):
                             actEcho.deviceOwnerCustomerId)
         
         # replace the placeholders in Payload
-        myheaders=self.CreateCurlHeader() 
-        postfields = self.ParseJson2Curl(myDict,
+        myheaders=self.create_curl_header() 
+        postfields = self.parse_json_2_curl(myDict,
                                          mValue,
                                          actEcho.serialNumber,
                                          actEcho.family,
@@ -513,13 +632,13 @@ class alexarc4shng(SmartPlugin):
         except Exception as err:
             self.logger.info('Got Error by adding PostFields',err)
         myCurl.perform()
-        self.logger.info('Status of SendCmdByCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        self.logger.info('Status of send_cmd_by_curl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
         
         return myCurl.getinfo(myCurl.RESPONSE_CODE)
         
 
     
-    def getDevicesbyCurl(self):
+    def get_devices_by_curl(self):
         try:
             buffer = BytesIO()
             myCurl = pycurl.Curl()
@@ -530,7 +649,8 @@ class alexarc4shng(SmartPlugin):
             myCurl.setopt(pycurl.WRITEDATA , buffer)
             myCurl.setopt(pycurl.HTTPGET,1)
             myCurl.perform()
-            self.logger.info('Status of getDevicesbyCurl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+            self.logger.info('Status of get_devices_by_curl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+            myCurl.close()
             
             body=buffer.getvalue()
             mybody = body.decode()
@@ -539,7 +659,7 @@ class alexarc4shng(SmartPlugin):
             
             
         except Exception as err:
-            self.logger.debug('Error while getting Devices',err)
+            self.logger.error('Error while getting Devices: %s' %err)
             return None
         
         for device in myDict['devices']:
@@ -557,12 +677,12 @@ class alexarc4shng(SmartPlugin):
                 actDevice.name=device['accountName']
                 actDevice.deviceOwnerCustomerId=device['deviceOwnerCustomerId']
             except Exception as err:
-                self.logger.debug('Error while getting Devices',err)
+                self.logger.debug('Error while getting Devices: %s' %err)
                 myDevices = None
                 
         return myDevices
     
-    def parseCookieFile(self,cookiefile):
+    def parse_cookie_file(self,cookiefile):
         csrf = 'N/A'
         try:
             with open (cookiefile, 'r') as fp:
@@ -574,14 +694,14 @@ class alexarc4shng(SmartPlugin):
                         if len(lineFields) >= 7:
                             if lineFields[5] == 'csrf' and lineFields[0].find("amazon") >= 0:
                                 csrf = lineFields[6]
-
+            fp.close()
         except Exception as err:
             self.logger.debug('Cookiefile could not be opened %s' % cookiefile)
         
         return csrf
     
     
-    def ParseUrl(self,myDummy,mValue,serialNumber,familiy,deviceType,deviceOwnerCustomerId):
+    def parse_url(self,myDummy,mValue,serialNumber,familiy,deviceType,deviceOwnerCustomerId):
         
         myDummy = myDummy.strip()
         myDummy=myDummy.replace(' ','')
@@ -604,7 +724,7 @@ class alexarc4shng(SmartPlugin):
         
         return myDummy
 
-    def ParseJson2Curl(self,myDict,mValue,serialNumber,familiy,deviceType,deviceOwnerCustomerId):
+    def parse_json_2_curl(self,myDict,mValue,serialNumber,familiy,deviceType,deviceOwnerCustomerId):
 
         myDummy = json.dumps(myDict, sort_keys=True)
        
@@ -656,7 +776,7 @@ class alexarc4shng(SmartPlugin):
         
         return myDummy
     
-    def CreateCurlHeader(self):
+    def create_curl_header(self):
         myheaders=["Host: alexa.amazon.de",
                     "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0) Gecko/20100101 Firefox/60.0",
                     "Accept: */*",
@@ -672,7 +792,7 @@ class alexarc4shng(SmartPlugin):
                   ]
         return myheaders
     
-    def LoadCommandlet(self,cmdName,path=None):
+    def load_command_let(self,cmdName,path=None):
         myDescription   = ''
         myUrl           = ''
         myJson          = ''
@@ -704,7 +824,7 @@ class alexarc4shng(SmartPlugin):
     
 
     
-    def LoadCmdList(self):
+    def load_cmd_list(self):
         retValue=[]
         
         files = os.listdir(self.sh.get_basedir()+'/plugins/alexarc4shng/cmd/')
@@ -719,14 +839,14 @@ class alexarc4shng(SmartPlugin):
         
         return json.dumps(retValue)
 
-    def CheckJson(self,payload):
+    def check_json(self,payload):
         try:
             myDump = json.loads(payload)
             return 'Json OK'
         except Exception as err:
             return 'Json - Not OK - '+ err.args[0]
         
-    def DeleteCmdLet(self,name):
+    def delete_cmd_let(self,name):
         result = ""
         try:
             os.remove(self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"+name+'.cmd')
@@ -750,19 +870,19 @@ class alexarc4shng(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
     
-    def TestCmdLet(self,selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl):
+    def test_cmd_let(self,selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl):
         result = ""
         if (txtApiUrl[0:1] != "/"):
             txtApiUrl = "/"+txtApiUrl
             
-        JsonResult = self.CheckJson(txt_payload)
+        JsonResult = self.check_json(txt_payload)
         if (JsonResult != 'Json OK'):
             result =  "Status:failure\n"
             result += "value1:"+JsonResult+"\n"
         else:
             try:
-                self.SaveCmdLet("test", txtDescription, txt_payload, txtApiUrl, "/tmp/")
-                retVal = self.SendCmdByCurl(selectedDevice,"test",txtValue,"/tmp/")
+                self.save_cmd_let("test", txtDescription, txt_payload, txtApiUrl, "/tmp/")
+                retVal = self.send_cmd_by_curl(selectedDevice,"test",txtValue,"/tmp/")
                 result =  "Status:OK\n"
                 result += "value1: HTTP "+str(retVal)+"\n"
             except Exception as err:
@@ -783,9 +903,9 @@ class alexarc4shng(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
 
-    def LoadCmd2WebIf(self,txtCmdName):
+    def load_cmd_2_webIf(self,txtCmdName):
         try:
-            myDescription,myUrl,myDict = self.LoadCommandlet(txtCmdName,None)
+            myDescription,myUrl,myDict = self.load_command_let(txtCmdName,None)
             result =  "Status|OK\n"
             result += "Description|"+myDescription+"\n"
             result += "myUrl|"+myUrl+"\n"
@@ -808,7 +928,7 @@ class alexarc4shng(SmartPlugin):
         return json.dumps(myResponse,sort_keys=True)
         
         
-    def SaveCmdLet(self,name,description,payload,ApiURL,path=None):
+    def save_cmd_let(self,name,description,payload,ApiURL,path=None):
         if path==None:
             path=self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"
         
@@ -817,7 +937,7 @@ class alexarc4shng(SmartPlugin):
         if (ApiURL[0:1] != "/"):
             ApiURL = "/"+ApiURL
             
-        JsonResult = self.CheckJson(payload)
+        JsonResult = self.check_json(payload)
         if (JsonResult != 'Json OK'):
             result =  "Status:failure\n"
             result += "value1:"+JsonResult+"\n"
@@ -854,7 +974,17 @@ class alexarc4shng(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
     
-    def AutoLogin(self,user="",pwd=""):
+    def auto_login(self):
+        if self.credentials == '':
+            return False
+        # First delete tmp-Cookie
+        try:
+            os.remove(self.cookiefile+"_tmp")
+        except:
+            pass
+        ####################################################
+        # Start Step 1 - get Page without Post-Fields
+        ####################################################
         if self.credentials != '':
             dummy = self.credentials.split(":")
             user = dummy[0]
@@ -862,6 +992,7 @@ class alexarc4shng(SmartPlugin):
         myResults= []
         ## start - First Step - generate Session-ID
         buffer = BytesIO()
+        
         myUrl='https://'+self.host
         FirstHeader=["Accept-Language: de,en-US;q=0.7,en;q=0.3",
                      "DNT: 1",
@@ -875,7 +1006,9 @@ class alexarc4shng(SmartPlugin):
         myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
         myCurl.setopt(pycurl.HTTPHEADER, FirstHeader)
         myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
-        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+        
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate") # , br entfernt
         myCurl.setopt(pycurl.HEADER,1)
         myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
         
@@ -883,33 +1016,35 @@ class alexarc4shng(SmartPlugin):
         myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
         myCurl.setopt(pycurl.WRITEDATA , buffer)
         myCurl.perform()
-        
+        header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+        self.logger.info('Status of Auto-Login First Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myResults.append('HTTP : ' + str(myCurl.getinfo(myCurl.RESPONSE_CODE))+'- Step 1 - get Session-ID')
+        myCurl.close()        
         
         content=buffer.getvalue()
         content = content.decode()
         
-        
-        header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
-        headers=content[0:header_size]
-        content = content[header_size:len(content)]
-        self.logger.info('Status of Auto-Login First Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
-        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
-        myCurl.close()
-        ## done - First Step - generate Session-ID
-        
-        
         ## Get the hidden values
-        myPostdata = ""
+        content = str(content.replace('hidden', '\r\nhidden'))
+        postdata = {}
         myFile = content.splitlines()
         for myLine in myFile:
-            if myLine.find("hidden") > 0 and myLine.find("value") > 0:
-                myPostdata = myPostdata + myLine + "\n"
-        self.logger.info("parsed First Get for Login")
+            if 'hidden' in myLine:
+                data = re.findall(r'hidden.*name="([^"]+).*value="([^"]+).*/',myLine)
+                if len(data) >0:
+                    postdata[data[0][0]]= data[0][1]
+ 
+        # schreiben in eine Datei Step - 1
+        myFile = open("/tmp/amazon-step1.html","w")
+        myFile.write(content)
+        myFile.close()
         
-        # Get the Location-Referer    
-            
         
-        ## start - Second Step - login with form
+        postdata['showPasswordChecked'] = 'false'
+
+        headers=content[0:header_size]
+        content = content[header_size:len(content)]
+        
         # Get Session-ID from Cookie-File
         actSessionID = ""
         try:
@@ -923,36 +1058,48 @@ class alexarc4shng(SmartPlugin):
                         lineFields = line.strip().split('\t')
                         if len(lineFields) >= 7:
                             actSessionID = lineFields[6]
-
-        except Exception as err:
-            self.logger.debug('Cookiefile could not be opened %s' % self.cookiefile+"_tmp")
+            fp.close()
+        except:
+            pass
         
+        ####################################################
+        ## done - First Step - generate Session-ID
+        ####################################################
+        
+        ####################################################
+        # Start Step 2 - login with form
+        ####################################################
+        # Get the Location-Referer
+        for myLine in headers.splitlines():
+            if 'Location' in myLine:
+                data = re.findall('Location:(.*)/',myLine)
+                myLocation = data[0].strip()
+                myLocation = myLine.split(":")[1].strip()+':'+myLine.split(":")[2].strip()
+ 
+ 
         SecondHeader=["Accept-Language: de,en-US;q=0.7,en;q=0.3",
                       "DNT: 1",
                       "Upgrade-Insecure-Requests: 1",
                       "Connection: keep-alive",
-                      "Content-Type: text/plain;charset=UTF-8",
-                      "Referer: " + myUrl + "/ap/signin/" + actSessionID
+                      "Referer: "+ myLocation
                      ]
-        newUrl = myUrl+"/ap/signin"
-        
-        postdata = {}
-        postdata['email'] =user
-        postdata['password'] = pwd
         
         
-        #postfields = urllib.parse.urlencode(postfields)
-        #postfields = urllib.pathname2url(postfields)
-        #postfields = urllib.pathname2url(postfields)
+        
+        newUrl = "https://www.amazon.de"+"/ap/signin/"+actSessionID
+        
+
         postfields = urllib3.request.urlencode(postdata)
-         
-        postfields = self.ParseJson2Curl(postfields, '', '', '', '', '')
         
+        
+
+        buffer = BytesIO()
+
         myCurl = pycurl.Curl()
         myCurl.setopt(pycurl.URL,newUrl)
         myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
         myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
-        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate") # ,br entfernt
         myCurl.setopt(pycurl.POST,1)
         myCurl.setopt(pycurl.HEADER,1)
         myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
@@ -967,39 +1114,86 @@ class alexarc4shng(SmartPlugin):
         myCurl.perform()
         content=buffer.getvalue()
         content = content.decode()
-        
-        # schreiben in eine Datei
-        myFile = open("/tmp/amazon.html","w")
-        myFile.write(content)
-        myFile.close()
-        
         header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
-        headers=content[0:header_size]
-        content = content[header_size:len(content)]
-        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
+        myResults.append('HTTP : ' + str(myCurl.getinfo(myCurl.RESPONSE_CODE))+'- Step 2 - login blank to get referer')
         self.logger.info('Status of Auto-Login Second Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
         myCurl.close()
-        ## done - Second Step - login with form
         
-        ## start - third Step - get the csrf
+        
+        headers=content[0:header_size]
+        content = content[header_size:len(content)]
+        
+        
+        ## Get the hidden values
+        content = str(content.replace('hidden', '\r\nhidden'))
+        postdata2 = {}
+        myFile = content.splitlines()
+        for myLine in myFile:
+            if 'hidden' in myLine:
+                if 'showPassword' in myLine:
+                    print ("fdssadf")
+                data = re.findall(r'hidden.*name="([^"]+).*value="([^"]+).*/',myLine)
+                if len(data) >0:
+                    postdata2[data[0][0]]= data[0][1]
+ 
+        postdata2['showPasswordChecked'] = 'false'        
+        
+        
+        
+        # Get Session-ID from Cookie-File
+        actSessionID = ""
+        try:
+            with open (self.cookiefile+"_tmp", 'r') as fp:
+                for line in fp:
+                    if line.find('session-id')<0:
+                            continue
+                    if line.find('session-id-time')>0:
+                            continue
+                    if not re.match(r'^\#', line):
+                        lineFields = line.strip().split('\t')
+                        if len(lineFields) >= 7:
+                            actSessionID = lineFields[6]
+            fp.close()
+        except Exception as err:
+            self.logger.debug('Cookiefile could not be opened %s' % self.cookiefile+"_tmp")
+
+        ####################################################
+        ## done - Second Step - generate Session-ID
+        ####################################################
+        
+        ####################################################
+        # Start Step 3 - login with form
+        ####################################################
         ThirdHeader =["Accept-Language: de,en-US;q=0.7,en;q=0.3",
                       "DNT: 1",
                       "Connection: keep-alive",
-                      "Content-Type: text/plain;charset=UTF-8",
-                      "Referer: " + myUrl + "/spa/index.html",
-                      "Origin: "+ myUrl 
+                      "Upgrade-Insecure-Requests: 1",
+                      "Content-Type: application/x-www-form-urlencoded",
+                      "Referer: https://www.amazon.de/ap/signin/" + actSessionID
                      ]
+
+        newUrl = "https://www.amazon.de/ap/signin"
         
-        newUrl = myUrl+"/api/language"
         
+        #postdata += 'email' + '   ' + user + '\r\n'
+        #postdata += 'password' + '   ' + pwd 
+        
+        # ============== erst später
+        postdata2['email'] =user
+        postdata2['password'] = pwd
+        
+        postfields = urllib3.request.urlencode(postdata2)
+        buffer = BytesIO()
         myCurl = pycurl.Curl()
         myCurl.setopt(pycurl.URL,newUrl)
         myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
         myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
-        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate, br")
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate")
         myCurl.setopt(pycurl.HEADER,1)
         myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
         myCurl.setopt(pycurl.HTTPHEADER, ThirdHeader)
+        myCurl.setopt(pycurl.POSTFIELDS,postfields)
+        myCurl.setopt(pycurl.POST,1)
         
         myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile+"_tmp")
         myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
@@ -1009,20 +1203,82 @@ class alexarc4shng(SmartPlugin):
         
         content=buffer.getvalue()
         content = content.decode()
-        
         header_size = myCurl.getinfo(pycurl.HEADER_SIZE)
+        myResults.append('HTTP : ' + str(myCurl.getinfo(myCurl.RESPONSE_CODE))+'- Step 3 - login with credentials')
+        self.logger.info('Status of Auto-Login Third Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myCurl.close()
+        
+      
+        
         headers=content[0:header_size]
         content = content[header_size:len(content)]
-        myResults.append(str(myCurl.getinfo(myCurl.RESPONSE_CODE)))
-        self.logger.info('Status of Auto-Login Second Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        
+        
+        
+        #################################################################
+        ## done - third Step - logged in now go an get the goal (csrf)
+        #################################################################
+        FourthHeader =["Accept-Language: de,en-US;q=0.7,en;q=0.3",
+              "DNT: 1",
+              "Connection: keep-alive",
+              'Referer: https://'+self.host+ '/spa/index.html',
+              'Origin: https://'+self.host
+             ]
+
+        newUrl = 'https://'+self.host+'/api/language'
+        myCurl = pycurl.Curl()
+        myCurl.setopt(pycurl.URL,newUrl)
+        myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
+        myCurl.setopt(pycurl.HTTPHEADER, FourthHeader)
+        myCurl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+        myCurl.setopt(pycurl.ENCODING,  "gzip, deflate") # , br entfernt
+        myCurl.setopt(pycurl.HEADER,1)
+        myCurl.setopt(pycurl.FOLLOWLOCATION, 1)
+        
+        myCurl.setopt(pycurl.COOKIEJAR ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile+"_tmp")
+        myCurl.setopt(pycurl.WRITEDATA , buffer)
+        myCurl.perform()
+        
+        
+        content=buffer.getvalue()
+        content = content.decode()
+        
+        myResults.append('HTTP : ' + str(myCurl.getinfo(myCurl.RESPONSE_CODE))+'- Step 4 - get csrf')
+        self.logger.info('Status of Auto-Login fourth Step: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
         myCurl.close()
-        ## done - third Step - get the csrf
+        # Hopefully we got an new csrf - so check it
+        my_csrf = self.parse_cookie_file(self.cookiefile+'_tmp')
+        if (my_csrf != 'N/A'):
+            self.csrf = my_csrf
+            myResults.append('check CSRF- Step 5 - got good csrf')
+            ############################################################
+            # now move the TMP-Cookie to the real cookie
+            try:
+                if os.path.isfile(self.cookiefile+'_tmp'):
+                    try:
+                        os.remove(self.cookiefile)
+                    except:
+                        pass
+                    os.popen('mv '+self.cookiefile+'_tmp' + ' ' + self.cookiefile)
+                    time.sleep(1)
+                myResults.append('created new cookie-File - Step 6 - done')
+                self.login_state= self.check_login_state()
+                myResults.append('login state : %s' % self.login_state)
+            except:
+                myResults.append('created new cookie-File - Step 6 - finished with error')
+        else:
+            myResults.append('check CSRF- Step 5 - error -got no CSRF')
+        
+                
+        return myResults
+        
         
     
     
-    def LogOff(self):
+    def log_off(self):
         buffer = BytesIO()
-        myUrl='https://'+self.host
+        myUrl='https://'+self.host+"/logout"
         FirstHeader=["DNT: 1",
                      "Connection: keep-alive"
                      "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
@@ -1047,7 +1303,7 @@ class alexarc4shng(SmartPlugin):
             
             
         myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
-        self.logger.info('Status of Auto-Login FirstStop: %d' % myResult)
+        self.logger.info('Status of log_off: %d' % myResult)
         myCurl.close()
         if myResult == 200:
             return "HTTP - " + str(myResult)+" successfully logged off"
@@ -1140,7 +1396,7 @@ class WebInterface(SmartPluginWebIf):
                    plugin_info=self.plugin.get_info(), p=self.plugin,
                    **kwargs)
 
-    def SetCookiePic(self,CookieOK=False):
+    def set_cookie_pic(self,CookieOK=False):
         dstFile = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/plugin_logo.png'
         srcGood = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_good.png'
         srcBad = self.plugin.sh.get_basedir()+'/plugins/alexarc4shng/webif/static/img/alexa_cookie_bad.png'
@@ -1162,14 +1418,17 @@ class WebInterface(SmartPluginWebIf):
 
         :return: contents of the template after beeing rendered
         """
-        if (self.plugin.csrf != 'N/A'):
-            self.SetCookiePic(True)
-        else:
-            self.SetCookiePic(False)
         
-        myDevices = self.GetDeviceList()
+        if (self.plugin.login_state != 'N/A'):
+            self.set_cookie_pic(True)
+        else:
+            self.set_cookie_pic(False)
+        
+        myDevices = self.get_device_list()
         alexa_device_count = len(myDevices)
-        return self.render_template('index.html',device_list=myDevices,csrf_cookie=self.plugin.csrf,alexa_device_count=alexa_device_count)
+        
+        login_info = self.plugin.last_update_time + '<font color="green"><strong>('+ self.plugin.next_update_time + ')</strong>' 
+        return self.render_template('index.html',device_list=myDevices,csrf_cookie=self.plugin.csrf,alexa_device_count=alexa_device_count,time_auto_login=login_info)
         '''
         tmpl = self.tplenv.get_template('index.html')
         return tmpl.render(plugin_shortname=self.plugin.get_shortname(), plugin_version=self.plugin.get_version(),
@@ -1179,29 +1438,29 @@ class WebInterface(SmartPluginWebIf):
    
    
     @cherrypy.expose
-    def logOff_html(self,txt_Result=None):
-        txt_Result=self.plugin.LogOff()
+    def log_off_html(self,txt_Result=None):
+        txt_Result=self.plugin.log_off()
         return json.dumps(txt_Result)
     
     @cherrypy.expose
-    def logIn_html(self,txt_Result=None):
-        txt_Result=self.plugin.AutoLogin()
+    def log_in_html(self,txt_Result=None):
+        txt_Result=self.plugin.auto_login()
         return json.dumps(txt_Result)
         
                            
     @cherrypy.expose
-    def handleButtons_html(self,txtValue=None, selectedDevice=None,txtButton=None,txt_payload=None,txtCmdName=None,txtApiUrl=None,txtDescription=None):
+    def handle_buttons_html(self,txtValue=None, selectedDevice=None,txtButton=None,txt_payload=None,txtCmdName=None,txtApiUrl=None,txtDescription=None):
         if txtButton=="BtnSave":
-            result = self.plugin.SaveCmdLet(txtCmdName,txtDescription,txt_payload,txtApiUrl)
+            result = self.plugin.save_cmd_let(txtCmdName,txtDescription,txt_payload,txtApiUrl)
         elif txtButton =="BtnCheck":
             pass
         elif txtButton =="BtnLoad":
-            result = self.plugin.LoadCmd2WebIf(txtCmdName)
+            result = self.plugin.load_cmd_2_webIf(txtCmdName)
             pass
         elif txtButton =="BtnTest":
-            result = self.plugin.TestCmdLet(selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl)
+            result = self.plugin.test_cmd_let(selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl)
         elif txtButton =="BtnDelete":
-            result = self.plugin.DeleteCmdLet(txtCmdName)
+            result = self.plugin.delete_cmd_let(txtCmdName)
         else:
             pass
         
@@ -1210,13 +1469,15 @@ class WebInterface(SmartPluginWebIf):
                 
     
     @cherrypy.expose
-    def BuildCmdList_html(self,reload=None):
-        myCommands = self.plugin.LoadCmdList()
+    def build_cmd_list_html(self,reload=None):
+        myCommands = self.plugin.load_cmd_list()
         return myCommands
     
     
-    def GetDeviceList(self):
-        self.plugin.Echos = self.plugin.getDevicesbyCurl()
+    def get_device_list(self):
+        if (self.plugin.login_state == True):
+            self.plugin.Echos = self.plugin.get_devices_by_curl()
+        
         Device_items = []
         try:
             myDevices = self.plugin.Echos.devices
@@ -1246,15 +1507,16 @@ class WebInterface(SmartPluginWebIf):
         for line in myLines:
             file.write(line+"\r\n")
         file.close()
-        value1 = self.plugin.parseCookieFile("/tmp/cookie.txt")
+        value1 = self.plugin.parse_cookie_file("/tmp/cookie.txt")
+        self.plugin.login_state = self.plugin.check_login_state()
         
-        if (value1 != 'N/A'):
-            self.SetCookiePic(True)
+        if (self.plugin.login_state == True):
+            self.set_cookie_pic(True)
         else:
-            self.SetCookiePic(False)
+            self.set_cookie_pic(False)
         
         
-        if (value1 == "N/A") :
+        if (self.plugin.login_state == False) :
             # Cookies not found give back an error
             tmpl = self.tplenv.get_template('index.html')
             return tmpl.render(plugin_shortname=self.plugin.get_shortname(), plugin_version=self.plugin.get_version(),
@@ -1262,14 +1524,17 @@ class WebInterface(SmartPluginWebIf):
                            txt_Result='<font color="red"><i class="fas fa-exclamation-triangle"></i> Cookies are not saved missing csrf',
                            cookie_txt=cookie_txt,
                            csrf_cookie=value1)
-
+        
+        # Store the Cookie-file for permanent use
         file=open(self.plugin.cookiefile,"w")
         for line in myLines:
             file.write(line+"\r\n")
         file.close()
         
         self.plugin.csrf = value1
-        myDevices = self.GetDeviceList()
+        
+        
+        myDevices = self.get_device_list()
         alexa_device_count = len(myDevices)
         
         

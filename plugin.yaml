@@ -6,9 +6,9 @@ plugin:
         de: 'Plugin zur Steuerung von Amazon Echo Geräten Zugriff via Web-Browser API und Cookie'
         en: 'Plugin to remote control Echo Show/Spot/Fire'
     maintainer: AndreK
-    tester: henfri, juergen
+    tester: henfri, juergen, psilo
     documentation: https://github.com/Andrek01  # url of documentation (wiki) page    
-    version: 1.0.0                              # Plugin version
+    version: 1.0.1                              # Plugin version
     sh_minversion: 1.5.2                        # minimum shNG version to use this plugin
     multi_instance: False                       # plugin supports multi instance
     classname: AlexaRc4shNG                     # class containing the plugin
@@ -20,7 +20,7 @@ plugin:
 plugin_functions:
     # Definition of function interface of the plugin
 
-    SendCmdByCurl:
+    send_cmd_by_curl:
         type: str
         description:
             de: "Sendet einen Befehl an Alexa."
@@ -64,26 +64,26 @@ parameters:
             en: 'Cookiefile with complete path'
     host:
         type: str
-        default: ''
+        default: 'alexa.amazon.de'
         description:
             de: 'Amazon-Host z.b. alexa.amazon.de ohne Protokoll (https)'
             en: 'Amazon-Host a.e. alexa.amazon.de without protocoll (https)'
 
-    Item2EnableAlexaRC:
+    item_2_enable_alexa_rc:
         type: str
         default: ''
         description:
             de: 'Ein Item welches verwendet wird um die Freigabe für die Kommunikation zu erteilen (USZU)'
             en: 'An Item to give the plugin permission to remote control the echo-devices (USZU)'
 
-    AlexaCredentials:
+    alexa_credentials:
         type: str
         default: ''
         description:
-            de: 'Zugangsdaten für das Amazon-Alexa-Web-Site <USER>:<PWD>'
-            en: 'credentials for the amazon-alexa-website <USER>:<PWD>'
+            de: 'Zugangsdaten für das Amazon-Alexa-Web-Site <USER>:<PWD>, base64 encodiert'
+            en: 'credentials for the amazon-alexa-website <USER>:<PWD>, base64 encoded'
 
-    LoginUpdateCycle:
+    login_update_cycle:
         type: num
         default: 604800
         description:

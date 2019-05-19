@@ -20,19 +20,14 @@
 			<td class="py-1"><strong>csrf Cookie</strong></td>
 			<td align="right" class="py-1" id="csrfCookie">{{ csrf_cookie }}</td>
 		</tr>
-<!--
-		<tr>
-			<td class="py-1"><strong>a2s_csrf Cookie</strong></td>
-			<td align="right" class="py-1">{{ a2s_csrf_cookie }}</td>
-		</tr>
--->
+
 		<tr>
 			<td class="py-1"><strong>No. of Alexa-Devices</strong></td>
 			<td align="right" class="py-1">{{ alexa_device_count }}</td>
 		</tr>
 		<tr>
-			<td class="py-1"><strong>Cookie Expiration Date</strong></td>
-			<td align="right" class="py-1">{{ cookie_expire }}</td>
+			<td class="py-1"><strong>last/next Auto-Login</strong></td>
+			<td align="right" class="py-1">{{ time_auto_login }}</td>
 		</tr>
 
 		<tr>
@@ -54,18 +49,22 @@
 <form name="input" action="storecookie.html" method="POST" enctype="multipart/form-data">
 	<table class="table table-striped table-hover">
 
-			<tr>
+			<tr style="height: 75px">
 				<td style="width: 10%"> 
 				  <input name="save" value="{{ _('Store Cookie','button') }}" type="submit" class="btn btn-shng btn-sm"></br>
 				</td>
 				<td style="width: 10%"> 
-			          <button type="button" onclick="BtnLogOff()"style="margin-left : 5px; visibility:hidden" class="btn btn-shng btn-sm" value="btnLogOff" id="btn-logoff">&nbsp;{{ _('LogOff') }}</button>
+			          <button type="button" onclick="BtnLogOff()"style="margin-left : 5px" class="btn btn-shng btn-sm" value="btnLogOff" id="btn-logoff">&nbsp;{{ _('LogOff') }}</button>
 				</td>
 				<td style="width: 10%"> 
-			          <button type="button" onclick="BtnLogIn()"style="margin-left : 5px; visibility:hidden" class="btn btn-shng btn-sm" value="btnLogIn" id="btn-login">&nbsp;{{ _('LogIn') }}</button>
+			          <button type="button" onclick="BtnLogIn()"style="margin-left : 5px" class="btn btn-shng btn-sm" value="btnLogIn" id="btn-login">&nbsp;{{ _('LogIn') }}</button>
 				</td>
 				<td style="width: 10%" valign = "middle" align="left"><strong>Result :</strong></td>
-				<td style="width: 60%" valign = "middle" align="left" id="txt_Result">{{ txt_Result }}</td>
+				<td style="width: 75%;margin-top: 5px;margin-bottom: 5px; margin-left : 5px;margin-right: 5px; height : 100px;font-size: 12px;" valign = "middle" align="left">
+
+					<textarea type="input" rows="5" style="width: 100%;height: 100%;font-size: 12px;" class="form-control" name="txt_Result" id="txt_Result" placeholder="{{ _('...') }}" disabled >{{ txt_Result }}</textarea>
+
+				</td>
 			</tr>
 
 	</table>
@@ -208,10 +207,10 @@ li.L5, li.L6, li.L7, li.L8
           <button onclick="BtnTest()" style="margin-left : 5px" type="submit" class="btn btn-shng btn-sm" value="btnTest" id="btn-test"><i class="far fa-play-circle"></i></i>&nbsp;{{ _('Test') }}</input>
           <button onclick="BtnDelete()" style="margin-left :5px" type="submit" class="btn btn-shng btn-sm" value="btnDelete" id="btn-delete"><i class="far fa-trash-alt"></i>&nbsp;{{ _('Delete') }}</input>
 
-	  <strong> <button id="resultOK" style="visibility:hidden; margin-left:20px; font-size: 35px;" color="green"  class="far fa-check-circle"></strong></button>
-	  <strong> <button id="resultNOK" style="visibility:hidden; margin-left:1px; font-size: 35px" color="red"  class="fas fa-exclamation-triangle"></strong></button>
+	  <button id="resultOK" style="visibility:hidden; margin-left:20px; font-size: 35px;color:green"   class="far fa-check-circle"></button>
+	  <button id="resultNOK" style="visibility:hidden; margin-left:1px; font-size: 35px;color:red"   class="fas fa-exclamation-triangle"></button>
 
-	  <textarea type="input" style="width:380px;margin-bottom: 5px; margin-left : 5px;margin-right: 5px; height : 50px;font-size: 12px;" class="form-control" name="txtresult" id="txtresult" placeholder="{{ _('...') }}"  disabled>{{ txtResult }}</textarea><br/>
+	  <textarea type="input" style="width:350px;margin-bottom: 5px; margin-left : 5px;margin-right: 5px; height : 50px;font-size: 12px;" class="form-control" name="txtresult" id="txtresult" placeholder="{{ _('...') }}"  disabled>{{ txtResult }}</textarea><br/>
 
 
 	  </div>

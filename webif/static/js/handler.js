@@ -11,12 +11,12 @@ var selectedDevice;
 function BtnLogIn(result)
 {
 	$.ajax({
-		url: "logIn.html",
+		url: "log_in.html",
 		type: "GET",
 		data: {} ,
 		contentType: "application/json; charset=utf-8",
 		success: function (response) {
-			document.getElementById("txt_Result").innerHTML = response;
+			ValidateLoginResponse(response);
 		},
 		error: function () {
 			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
@@ -32,7 +32,7 @@ function BtnLogIn(result)
 function BtnLogOff(result)
 {
 	$.ajax({
-		url: "logOff.html",
+		url: "log_off.html",
 		type: "GET",
 		data: {} ,
 		contentType: "application/json; charset=utf-8",
@@ -176,6 +176,25 @@ function BtnDelete(result)
 }
 
 
+//*************************************************************
+// ValidateLoginResponse -checks the login-button
+//*************************************************************
+
+function ValidateLoginResponse(response)
+{
+var myResult = ""
+var temp = ""
+var objResponse = JSON.parse(response)
+for (x in objResponse)
+    {
+     temp = temp + objResponse[x]+"\n";
+    }
+
+document.getElementById("txt_Result").innerHTML = temp;
+
+
+}
+
 
 //*************************************************************
 // ValidateResponse - checks the response for button-Actions
@@ -216,7 +235,7 @@ else
 
 function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: "handleButtons.html",
+		url: "handle_buttons.html",
 		type: "GET",
 		data: { txtValue : txtValue,
 			selectedDevice:selectedDevice,
@@ -244,7 +263,7 @@ function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDes
 
 function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: "handleButtons.html",
+		url: "handle_buttons.html",
 		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:selectedDevice,
@@ -272,7 +291,7 @@ function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDe
 
 function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
 	$.ajax({
-		url: "handleButtons.html",
+		url: "handle_buttons.html",
 		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:selectedDevice,
@@ -317,7 +336,7 @@ function SelectCmd()
 //************************************************
 
 
-function BuildCmdList(result)
+function build_cmd_list(result)
 {
 
     var temp ="";
@@ -354,9 +373,9 @@ function reloadCmds()
         $("#refresh-element").addClass("fa-spin");
         $("#reload-element").addClass("fa-spin");
         $("#cardOverlay").show();
-        $.getJSON("BuildCmdList_html", function(result)
+        $.getJSON("build_cmd_list_html", function(result)
         		{
-	        	BuildCmdList(result);
+	        	build_cmd_list(result);
 	            window.setTimeout(function()
 	            		{
 		                $("#refresh-element").removeClass("fa-spin");
@@ -374,7 +393,7 @@ function reloadCmds()
 function LoadCommand(txtCmdName)
 {
 	$.ajax({
-		url: "handleButtons.html",
+		url: "handle_buttons.html",
 		type: "GET",
 		data: { txtValue : "",
 			selectedDevice:"",

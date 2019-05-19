@@ -5,6 +5,7 @@
 The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets (functions). The follwing functions are available on the Web-Interface :
 
 - Store a cookie-file to get access to the Alexa-WebInterface
+- manually Login with your credentials (sored in the /etc/plugin.yaml)
 - See all available devices, select one to send Test-Functions
 - define Commandlets - you can load,store,delete, check and test Commandlets
 - the Commandlets can be loaded to the webinterface by clicking on the list
@@ -15,7 +16,7 @@ In the API-URL and in the json-payload you have to replace the real values from 
 This plugin for smarthomeNG is mainly based on the informations of
 [Lötzimmer](https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html) ,[Apollon77](https://github.com/Apollon77/alexa-remote) and the  [openhab2](https://community.openhab.org/t/released-openhab2-amazon-echo-control-binding-controlling-alexa-from-openhab2/37844)
 
-Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an evenning to support me with SSML.
+Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/projektforen/edomi/1240964-alexa-smarthome-skill-payload-version-3) who spent a nigth and half an evenning to support me with SSML.
 #### !! So many thanks for the very good research and development in the past !!
 
 ## table of content
