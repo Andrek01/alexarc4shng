@@ -1,8 +1,8 @@
 # AlexaRc4shNG
 
-#### Version 1.0.0
+#### Version 1.0.1
 
-The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets. The follwing functions are available on the Web-Interface :
+The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets (functions). The follwing functions are available on the Web-Interface :
 
 - Store a cookie-file to get access to the Alexa-WebInterface
 - See all available devices, select one to send Test-Functions
@@ -15,7 +15,7 @@ In the API-URL and in the json-payload you have to replace the real values from 
 This plugin for smarthomeNG is mainly based on the informations of
 [Lötzimmer](https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html) ,[Apollon77](https://github.com/Apollon77/alexa-remote) and the  [openhab2](https://community.openhab.org/t/released-openhab2-amazon-echo-control-binding-controlling-alexa-from-openhab2/37844)
 
-Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an evenning to support my with SSML.
+Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an evenning to support me with SSML.
 #### !! So many thanks for the very good research and development in the past !!
 
 ## table of content
@@ -25,9 +25,10 @@ Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an even
 3. [Requirements](#requirements)
 4. [Cookie](#cookie)
 5. [Configuration](#config)
-6. [Web-Interface](#webinterface)
-7. [How to implmentend new Commands](#newCommand)
-8. [Tips for existing Command-Lets](#tipps)
+6. [functions](#functions)
+7. [Web-Interface](#webinterface)
+8. [How to implmentend new Commands](#newCommand)
+9. [Tips for existing Command-Lets](#tipps)
 
 ### Existing Command-Lets
 
@@ -44,16 +45,26 @@ Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an even
 ```
 <mValue>			= Value to send as alpha
 <nValue>			= Value to send as numeric
-#item.path/# 		= item-path of the value that should be inserted into text or ssml
+#item.path/# 		    = item-path of the value that should be inserted into text or ssml
 
 <serialNumber>			= SerialNo. of the device where the command should go to
-<familiy>			= device family
+<familiy>			    = device family
 <deviceType>			= deviceType
 <deviceOwnerCustomerId>		= OwnerID of the device
 ```
 #### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
 ## ChangeLog<a name="changelog"/>
+
+#### 2018.05.19 - Version 1.0.1
+- changed version to 1.0.1
+- changed to lib.item and lib.scheduler
+- the credentials have to be stored in base64 encoded
+- Login / LogOff Button to the Web-Interface
+- added Auto-Login function - when there is no cookie-file with correct values and credentials are specicified, the plugin automaticaly logs in
+- the log-in (the cookie) will be refreshed after the login_update_cycle
+- changed methods-names and parameters to lower case and underscore separated names
+
 
 #### 2018.04.30 - Version 1.0.0
 - added CommandLet for SSML-Support
@@ -78,9 +89,13 @@ Special thanks to Jonofe from the Edomi-Forum who spent a nigth and half an even
 * the plugin need pycurl (pip install pycurl or sudo -H pip install pycurl)
 * smarthomeNg 1.4.2 and above for the web-interface
 * a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
+* if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials [here](https://www.base64encode.org).
+If you enter your credentials like <strong>"user.test@test.gmail.com"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
+
 
 
 If you get in trouble by installing pycurl, please try the following:
+
 ```
  sudo apt-get update
  sudo apt-get install libcurl4-openssl-dev libssl-dev
@@ -88,7 +103,6 @@ If you get in trouble by installing pycurl, please try the following:
  wget https://dl.bintray.com/pycurl/pycurl/pycurl-7.43.0.2.tar.gz sudo chmod 777 pycurl-7.43.0.2.tar.gz
  tar -zxvf pycurl-7.43.0.2.tar.gz cd pycurl-7.43.0.2
  sudo apt-get upgrade sudo python3 setup.py install
-
 ```
 
 
@@ -98,20 +112,30 @@ If you get in trouble by installing pycurl, please try the following:
 
 ## Cookie <a name="cookie"/>
 
-First you have to install a plugin for your browser to export the cookies. For Firefox you will find a plugin [here](https://addons.mozilla.org/de/firefox/addon/cookies-txt/)
+<strong> First possibility - without Credentials : </strong>
+
 Plugins are available for most of the common browsers.
 After installing the plugin you have to login to your alexa.amazon-Web console. Now Export the cookie by using the plugin.
 Open the cookie-file with a Texteditor select all and copy it to the clipboard.
 Go to the Webinterface of the plugin and paste the content of the cookie-file to the textarea on Tab "Cookie-Handling". Store the cookie.
 When the cookie was successfull stored you can find you Echo-Devices on the Tab with the Alexa-devices.
 
+***Second possibility - with Credentials:***
 
-## Configuration<a name="config"/>
+When the plugin will be started and credentials are found in plugin.yaml, the plugin tests if the informations in the cookie-file are still guilty. If not the plugin tries to login with the credentials himself and stores the informations in the cookie-file. The cookie will updated in the cycle specified in "login_update_cycle" in the plugin.yaml
+
+## Configuration <a name="config">
 
 ### plugin.yaml
 
-The plugin needs to be defined in the /etc/plugin.yaml in this way.<br> The attributes are : <br> class_name -> fix <br> class_path -> fix (depending on you configuration) <br> cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br>host -> the adress of you Alexa-WebInterface<br>Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7<br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login (for future releases)<br>
-LoginUpdateCycle->seconds to wait for automatic Login in to refresh the cookie (for future releases)
+The plugin needs to be defined in the /etc/plugin.yaml in this way.<br><br>
+The attributes are : <br><br>
+class_name -> fix <br><br>
+class_path -> fix (depending on you configuration)<br><br>
+cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br><br>host -> the adress of you Alexa-WebInterface<br><br>Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7.<strong> This item is only checked during update_item in smarthomeNG. If you use the API directly from a logic or from the Webinterface the item will not be checked. In logics you have to check it yourself.</strong><br><br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login (for future releases)<br><br>
+alexa_credentials-> user:pwd (base64 encoded)<br><br>
+item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br><br>
+login_update_cycle->seconds to wait for automatic Login in to refresh the cookie (for future releases)<br><br>
 
 
 
@@ -121,9 +145,9 @@ AlexaRc4shNG:
     class_path			: plugins.alexarc4shng
     cookiefile			: '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
     host				: 'alexa.amazon.de'
-    Item2EnableAlexaRC 	: YourRoom.YourItem.Item
-    AlexaCredentials	: <User>:<PWD>
-    LoginUpdateCycle    : Seconds for automatic refresh the cookie (default 604800 = 7 days)
+    item_2_enable_alexa_rc 	: YourRoom.YourItem.Item
+    alexa_credentials	: <User>:<PWD>
+    login_update_cycle    : Seconds for automatic refresh the cookie (default 604800 = 7 days)
 ```
 
 
@@ -151,16 +175,17 @@ alexa_cmd_01: True:EchoDotKueche:StartTuneInStation:s96141
 `
 #### Sample to send Text with item-value included based on value lower then 20 degrees<br><br>
 
+```yaml
 Value = <20.0 - send command when value of the item becomes less then 20.0<br>
 EchodotKueche = Devicename where the Command should be send to<br>
 Text2Speech = Name of the Commandlet<br>
-Value_to_Send = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt <strong>#test.testzimmer.temperature.actual/#</strong> Grad
-
-
-`#test.testzimmer.temperature.actual/# = item-path of the value that should be inserted`
+Value_to_Send = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt <strong>#test.testzimmer.temperature.actual/#</strong> Grad #test.testzimmer.temperature.actual/# = item-path of the value that should be inserted
+```
 
 <strong>example:<br></strong>
-`alexa_cmd_01: "<20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad"`
+
+alexa_cmd_01: <20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt \#test.testzimmer.temperature.actual/\# Grad
+
 
 You can find the paths of the items on the backend-WebInterface - section items.
 
@@ -214,8 +239,8 @@ Example for settings in an item.conf file :
         alexa_description = "Licht Büro"
         alexa_actions = "TurnOn TurnOff"
         alexa_icon = "LIGHT"
-        alexa_cmd_01 = "True:EchoDotKueche:StartTuneInStation:s96141"
-        alexa_cmd_02 = "True:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist eingeschalten"
+        alexa_cmd_01 = '"True:EchoDotKueche:StartTuneInStation:s96141"
+        alexa_cmd_02 ="True:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist eingeschalten"
         alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
         alexa_cmd_04 = "False:EchoDotKueche:Pause: "
         visu_acl = rw
@@ -226,11 +251,23 @@ Example for settings in an item.conf file :
 ```
 
 ### logic.yaml
-Right now no logics are implemented. But you can trigger the items by your own logic
+Right now no logics are implemented. But you can trigger the functions by your own logic
 
 
-## Methods
-No methods are implemented
+## Plugin-functions <a name="functions"/a>
+
+The plugin provides the following publich functions. You can use it for example in logics.
+
+### send_cmd_by_curl(dvName, cmdName, mValue)
+
+Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
+You can find all this informations on the Web-Interface.
+You can also user the [placeholders](#placeholders)
+[placeholders](#placeholders)
+
+- the result will be the HTTP-Status of the request as string (str)
+
+
 
 # Web-Interface <a name="webinterface"/></a>
 
@@ -244,6 +281,8 @@ On the Webinterface you can store you cookie-file to the shng-Server. Export it 
 it to the textarea in the Web-Interface and Store it.
 
 Now the available devices from your alexa-account will be discoverd an shown on the second tab.
+
+You can also login / logoff when credentials are available. Please see results in the textarea on the right. Please refresh page manually after successfull login via the Web-Interface.
 
 ![PlaceHolder](./assets/webif1.jpg  "jpg")
 

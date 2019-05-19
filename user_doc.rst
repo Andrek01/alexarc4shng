@@ -1,7 +1,7 @@
 .. index:: Plugins; Remote Control for Alexa devices
 .. index:: AlexaRc4shNG
 
-AlexaRc4shNG
+alexarc4shng
 ###
 
 Konfiguration
