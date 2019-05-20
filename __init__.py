@@ -303,9 +303,7 @@ class alexarc4shng(SmartPlugin):
         
     
         if self.shngObjects.exists(CmdItem_ID):
-            self.logger.debug(
-                "Plugin '{}': update_item ws called with item '{}' from caller '{}', source '{}' and dest '{}'".format(
-                    self.get_fullname(), item, caller, source, dest))
+            self.logger.debug("Plugin '{}': update_item ws called with item '{}' from caller '{}', source '{}' and dest '{}'".format(self.get_fullname(), item, caller, source, dest))
             
             actDevice = self.shngObjects.get(CmdItem_ID)
             
@@ -450,10 +448,13 @@ class alexarc4shng(SmartPlugin):
 
         counter = 0
         myNewValue = mValue
-        for Replacement in search:
-            myNewValue = myNewValue.replace(search[counter],replace[counter])
-            counter +=1
-        
+        try:
+            for Replacement in search:
+                myNewValue = myNewValue.replace(search[counter],replace[counter])
+                counter +=1
+        except:
+            pass
+            
         return myNewValue
         # Ende der Prüfung
 
@@ -557,6 +558,8 @@ class alexarc4shng(SmartPlugin):
         myCurl.setopt(pycurl.WRITEDATA , buffer)
         myCurl.setopt(pycurl.HTTPGET,1)
         myCurl.perform()
+        myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
+        myCurl.close()
         try:
             body=buffer.getvalue()
             mybody = body.decode()
@@ -564,16 +567,16 @@ class alexarc4shng(SmartPlugin):
         except Exception as err:
             self.logger.debug("Error while getting Player-Infos",err)
         
-        self.logger.info('Status of receive_info_by_curl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        self.logger.info('Status of receive_info_by_curl: %d' % myResult)
         
-        return myCurl.getinfo(myCurl.RESPONSE_CODE),myDict
+        return myResult,myDict
     
     def send_cmd_by_curl(self,dvName, cmdName,mValue,path=None):
         # Parse the value field for dynamic content
-        if (mValue.find("#") >= 0 and mValue.find("/#") >0):
-            FirstPos = mValue.find("#")
-            LastPos = mValue.find("/#",FirstPos)
-            myItemName = mValue[FirstPos+1:LastPos]
+        if (str(mValue).find("#") >= 0 and str(mValue).find("/#") >0):
+            FirstPos = str(mValue).find("#")
+            LastPos = str(mValue).find("/#",FirstPos)
+            myItemName = str(mValue)[FirstPos+1:LastPos]
             myItem=self.sh.return_item(myItemName)
             
             if myItem._type == "num":
@@ -585,10 +588,8 @@ class alexarc4shng(SmartPlugin):
                 myValue = str(myItem())
             mValue = mValue[0:FirstPos]+myValue+mValue[LastPos:LastPos-2]+mValue[LastPos+2:len(mValue)]
 
-        
-        
         mValue = self.replace_mutated_vowel(mValue)
-        
+                
         
         buffer = BytesIO()
         actEcho = self.Echos.get(dvName)
@@ -633,8 +634,10 @@ class alexarc4shng(SmartPlugin):
             self.logger.info('Got Error by adding PostFields',err)
         myCurl.perform()
         self.logger.info('Status of send_cmd_by_curl: %d' % myCurl.getinfo(myCurl.RESPONSE_CODE))
+        myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
+        myCurl.close()
         
-        return myCurl.getinfo(myCurl.RESPONSE_CODE)
+        return myResult 
         
 
     
@@ -1034,11 +1037,6 @@ class alexarc4shng(SmartPlugin):
                 if len(data) >0:
                     postdata[data[0][0]]= data[0][1]
  
-        # schreiben in eine Datei Step - 1
-        myFile = open("/tmp/amazon-step1.html","w")
-        myFile.write(content)
-        myFile.close()
-        
         
         postdata['showPasswordChecked'] = 'false'
 
@@ -1174,11 +1172,7 @@ class alexarc4shng(SmartPlugin):
 
         newUrl = "https://www.amazon.de/ap/signin"
         
-        
-        #postdata += 'email' + '   ' + user + '\r\n'
-        #postdata += 'password' + '   ' + pwd 
-        
-        # ============== erst später
+
         postdata2['email'] =user
         postdata2['password'] = pwd
         
@@ -1298,13 +1292,15 @@ class alexarc4shng(SmartPlugin):
             myCurl.setopt(pycurl.COOKIEFILE ,self.cookiefile)
             myCurl.setopt(pycurl.WRITEDATA , buffer)
             myCurl.perform()
+            myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
+            myCurl.close()
         except Exception as err:
             print(err)
             
             
-        myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
+        
         self.logger.info('Status of log_off: %d' % myResult)
-        myCurl.close()
+        
         if myResult == 200:
             return "HTTP - " + str(myResult)+" successfully logged off"
         else:
