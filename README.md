@@ -55,6 +55,8 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 #### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
 ## ChangeLog<a name="changelog"/>
+#### 2018.05.20  Versopm 1.0.1
+- removed lib.scheduler - self.scheduler_add ist correct
 
 #### 2018.05.19 - Version 1.0.1
 - changed version to 1.0.1

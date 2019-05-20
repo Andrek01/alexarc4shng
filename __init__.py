@@ -26,7 +26,6 @@
 from lib.module import Modules
 from lib.model.smartplugin import *
 from lib.item import Items
-from lib.scheduler import Scheduler
 from datetime import datetime
 
 
@@ -122,7 +121,6 @@ class alexarc4shng(SmartPlugin):
         self.logger = logging.getLogger(__name__)
         self.sh = self.get_sh()
         self.items = Items.get_instance()
-        self.scheduler = Scheduler.get_instance()
         self.shngObjects = shngObjects()
         
         # Init values
@@ -176,8 +174,8 @@ class alexarc4shng(SmartPlugin):
         # enable scheduler if Login should be updated automatically
         
         if self.credentials != '':
-            #self.scheduler_add('alexarc4shng.check_login', self.check_refresh_login,cycle=300)
-            self.scheduler.add('plugins.alexarc4shng.check_login', self.check_refresh_login,cycle=300,from_smartplugin=True)
+            self.scheduler_add('check_login', self.check_refresh_login,cycle=300)
+            #self.scheduler.add('plugins.alexarc4shng.check_login', self.check_refresh_login,cycle=300,from_smartplugin=True)
         self.alive = True
         
         # if you want to create child threads, do not make them daemon = True!
