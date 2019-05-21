@@ -575,7 +575,8 @@ class alexarc4shng(SmartPlugin):
             FirstPos = str(mValue).find("#")
             LastPos = str(mValue).find("/#",FirstPos)
             myItemName = str(mValue)[FirstPos+1:LastPos]
-            myItem=self.sh.return_item(myItemName)
+            myItem=self.items.return_item(myItemName)
+            #myItem=self.sh.return_item(myItemName)
             
             if myItem._type == "num":
                 myValue = str(myItem())
