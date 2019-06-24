@@ -1217,8 +1217,9 @@ class alexarc4shng(SmartPlugin):
               'Referer: https://'+self.host+ '/spa/index.html',
               'Origin: https://'+self.host
              ]
-
-        newUrl = 'https://'+self.host+'/api/language'
+        newUrl = 'https://'+self.host+'/templates/oobe/d-device-pick.handlebars'
+        #newUrl = 'https://'+self.host+'/api/language'
+        
         myCurl = pycurl.Curl()
         myCurl.setopt(pycurl.URL,newUrl)
         myCurl.setopt(pycurl.USERAGENT , "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0" )
