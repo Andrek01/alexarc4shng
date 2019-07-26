@@ -39,6 +39,7 @@ import re
 import urllib3
 import time
 import base64
+import requests
 
 
 
@@ -125,6 +126,7 @@ class alexarc4shng(SmartPlugin):
         
         # Init values
         self.header = ''
+        self.cookie = {}
         self.csrf = 'N/A'
         self.postfields=''
         self.login_state = False
@@ -186,7 +188,7 @@ class alexarc4shng(SmartPlugin):
         Stop method for the plugin
         """
         self.logger.debug("Plugin '{}': stop method called".format(self.get_fullname()))
-        self.scheduler_remove('alexarc4shng.check_login')
+        self.scheduler_remove('check_login')
         self.alive = False
 
     def parse_item(self, item):
@@ -420,14 +422,7 @@ class alexarc4shng(SmartPlugin):
         if (last_update_time + self.LoginUpdateCycle < mytime):
             self.log_off()
             self.auto_login()
-            
-            if not self.login_state:
-                mytime = 0
-            
-            file=open(my_file,"w")
-            file.write(str(mytime)+"\r\n")
-            file.close()
-            
+
             # set actual values for web-interface
             self.last_update_time = datetime.fromtimestamp(mytime).strftime('%Y-%m-%d %H:%M:%S')
             self.next_update_time = datetime.fromtimestamp(mytime+self.LoginUpdateCycle).strftime('%Y-%m-%d %H:%M:%S')
@@ -469,11 +464,44 @@ class alexarc4shng(SmartPlugin):
     
     
     def check_login_state(self):
+        try:
+            myHeader={
+                        "DNT":"1",
+                        "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0) Gecko/20100101 Firefox/60.0",
+                        "Connection":"keep-alive"
+                      }
+            mySession = requests.Session()
+            mySession.cookies.update(self.cookie)
+            response= mySession.get('https://'+self.host+'/api/bootstrap?version=0',
+                                    headers=myHeader,allow_redirects=True)
+
+            myContent= response.content.decode()
+            myHeader = response.headers
+            myDict=json.loads(myContent)
+            mySession.close()
+            
+            self.logger.info('Status of check_login_state: %d' % response.status_code)
+            myAuth =myDict['authentication']['authenticated']
+            if (myAuth == True):
+                self.logger.info('Login-State checked - Result: Logged ON' )
+                return True
+            else:
+                self.logger.info('Login-State checked - Result: Logged OFF' )
+                return False
+            
+        
+        
+        except Exception as err:
+            self.logger.error('Login-State checked - Result: Logged OFF - try to login again')
+            return False
+
+        '''
         myUrl='https://'+self.host+'/api/bootstrap?version=0'
         myHeader = ['DNT: 1',
                     'Connection :keep-alive',
                     'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0'
                    ]
+        
         try:
             buffer = BytesIO()
             myCurl = pycurl.Curl()
@@ -513,9 +541,9 @@ class alexarc4shng(SmartPlugin):
           
             
         except Exception as err:
-            self.logger.error('Error while checking login state: %s' %err)
+            self.logger.error('Login-State checked - Result: Logged OFF - try to login again')
             return False
-    
+        '''
     def receive_info_by_curl(self,dvName,cmdName,mValue):
         buffer = BytesIO()
         actEcho = self.Echos.get(dvName)
@@ -638,9 +666,56 @@ class alexarc4shng(SmartPlugin):
         
         return myResult 
         
+    def get_devices_by_request(self):
+        try:
+            myHeader={
+                        "DNT":"1",
+                        "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0) Gecko/20100101 Firefox/60.0",
+                        "Connection":"keep-alive"
+                      }
+            mySession = requests.Session()
+            mySession.cookies.update(self.cookie)
+            response= mySession.get('https://alexa.amazon.de/api/devices-v2/device?cached=false',
+                                    headers=myHeader,allow_redirects=True)
 
+            myContent= response.content.decode()
+            myHeader = response.headers
+            myDict=json.loads(myContent)
+            mySession.close()
+            myDevices = EchoDevices()
+            
+            self.logger.info('Status of get_devices_by_request: %d' % response.status_code)
+            
+        
+        
+        except Exception as err:
+            self.logger.error('Error while getting Devices: %s' %err)
+            return None
+        
+        for device in myDict['devices']:
+            deviceFamily=device['deviceFamily']
+            if deviceFamily == 'WHA' or deviceFamily == 'VOX' or deviceFamily == 'FIRE_TV' or deviceFamily == 'TABLET':
+                continue
+            try:
+                actName = device['accountName']
+                myDevices.put(Echo(actName))
+        
+                actDevice = myDevices.get(actName)
+                actDevice.serialNumber=device['serialNumber']
+                actDevice.deviceType=device['deviceType']
+                actDevice.family=device['deviceFamily']
+                actDevice.name=device['accountName']
+                actDevice.deviceOwnerCustomerId=device['deviceOwnerCustomerId']
+            except Exception as err:
+                self.logger.debug('Error while getting Devices: %s' %err)
+                myDevices = None
+                
+        return myDevices
+    
     
     def get_devices_by_curl(self):
+        return self.get_devices_by_request()
+        
         try:
             buffer = BytesIO()
             myCurl = pycurl.Curl()
@@ -685,17 +760,23 @@ class alexarc4shng(SmartPlugin):
         return myDevices
     
     def parse_cookie_file(self,cookiefile):
+        self.cookie = {}
         csrf = 'N/A'
         try:
             with open (cookiefile, 'r') as fp:
                 for line in fp:
                     if line.find('amazon.de')<0:
                             continue
-                    if not re.match(r'^\#', line):
-                        lineFields = line.strip().split('\t')
-                        if len(lineFields) >= 7:
-                            if lineFields[5] == 'csrf' and lineFields[0].find("amazon") >= 0:
-                                csrf = lineFields[6]
+                    
+                    lineFields = line.strip().split('\t')
+                    if len(lineFields) >= 7:
+                        # add Line to self.cookie
+                        if lineFields[2] == '/':
+                            self.cookie[lineFields[5]]=lineFields[6]
+                        
+                        
+                        if lineFields[5] == 'csrf':
+                            csrf = lineFields[6]
             fp.close()
         except Exception as err:
             self.logger.debug('Cookiefile could not be opened %s' % cookiefile)
@@ -976,7 +1057,208 @@ class alexarc4shng(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
     
+    def send_get_request(self,url="", myHeader="",Cookie=""):
+        mySession = requests.Session()
+        mySession.cookies.update(Cookie)
+        response=mySession.get(url,
+                        headers=myHeader,
+                        allow_redirects=True)
+        return response.status_code, response.headers, response.cookies, response.content.decode(),response.url
+    
+    def send_post_request(self,url="", myHeader="",Cookie="",postdata=""):
+        mySession = requests.Session()
+        mySession.cookies.update(Cookie)
+        response=mySession.post(url,
+                        headers=myHeader,
+                        params=postdata,
+                        allow_redirects=True)
+        return response.status_code, response.headers, mySession.cookies, response.content.decode()
+    
+    def parse_response_cookie_2_txt(self, cookie, CollectingTxtCookie):
+        for c in cookie:
+            if c.domain != '':
+                CollectingTxtCookie += c.domain+"\t"+str(c.domain_specified)+"\t"+ c.path+"\t"+ str(c.secure)+"\t"+ str(c.expires)+"\t"+ c.name+"\t"+ c.value+"\r\n"
+        return CollectingTxtCookie
+    
+    def parse_response_cookie(self, cookie, CollectingCookie):
+        for c in cookie:
+            CollectingCookie[c.name] = c.value        
+        return CollectingCookie
+    
+    def collect_postdata(self,content):
+        content = str(content.replace('hidden', '\r\nhidden'))
+        postdata = {}
+        myFile = content.splitlines()
+        for myLine in myFile:
+            if 'hidden' in myLine:
+                data = re.findall(r'hidden.*name="([^"]+).*value="([^"]+).*/',myLine)
+                if len(data) >0:
+                    postdata[data[0][0]]= data[0][1]
+        
+        
+        postdata['showPasswordChecked'] = 'false'
+        return postdata
+    
+    
+    def auto_login_by_request(self):
+        if self.credentials == '':
+            return False
+        if self.credentials   != '':
+            dummy = self.credentials.split(":")
+            user = dummy[0]
+            pwd = dummy[1]
+        myResults= []
+        myCollectionTxtCookie =  ""
+        myCollectionCookie = {}
+        ####################################################
+        # Start Step 1 - get Page without Post-Fields
+        ####################################################
+        myHeaders={
+                    "Accept-Language":"de,en-US;q=0.7,en;q=0.3",
+                    "DNT" : "1",
+                    "Upgrade-Insecure-Requests" : "1",
+                    "Connection":"keep-alive",
+                    "Content-Type" : "text/plain;charset=UTF-8",
+                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                    "Connection" : "keep-alive",
+                    "Accept-Encoding" : "gzip, deflate, br"
+                  }
+        myStatus,myRespHeader, myRespCookie, myContent,myLocation = self.send_get_request('https://'+self.host,myHeaders)
+        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
+        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
+        PostData = self.collect_postdata(myContent)
+        
+        actSessionID = myRespCookie['session-id']
+        
+        self.logger.info('Status of Auto-Login First Step: %d' % myStatus)
+        myResults.append('HTTP : ' + str(myStatus)+'- Step 1 - get Session-ID')
+        ####################################################
+        # Start Step 2 - login with form
+        ####################################################
+        myHeaders={
+                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                    "Accept-Language":"de,en-US;q=0.7,en;q=0.3",
+                    "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "DNT"  : "1",
+                    "Upgrade-Insecure-Requests":"1",
+                    "Connection":"keep-alive",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept-Encoding" : "gzip, deflate, br",
+                    "Referer": myLocation
+                   }
+        newUrl = "https://www.amazon.de"+"/ap/signin/"+actSessionID
+        postfields = urllib3.request.urlencode(PostData)
+        
+        myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(newUrl,myHeaders,myCollectionCookie,PostData)
+        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
+        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
+        PostData = self.collect_postdata(myContent)
+        
+        #actSessionID = myRespCookie['session-id']
+        
+        self.logger.info('Status of Auto-Login Second Step: %d' % myStatus)
+        myResults.append('HTTP : ' + str(myStatus)+'- Step 2 - login blank to get referer')
+        
+        ####################################################
+        # Start Step 3 - login with form
+        ####################################################
+        myHeaders   ={
+                        "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                        "Accept-Language" :"de,en-US;q=0.7,en;q=0.3",
+                        "Accept" : "*/*",
+                        "DNT" : "1",
+                        "Accept-Encoding" : "gzip, deflate, br",
+                        "Connection":"keep-alive",
+                        "Upgrade-Insecure-Requests":"1",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Host":"www.amazon.de",
+                        "Referer":"https://www.amazon.de/ap/signin/" + actSessionID
+                     }
+
+        newUrl = "https://www.amazon.de/ap/signin"
+
+        PostData['email'] =user
+        PostData['password'] = pwd
+        
+        postfields = urllib3.request.urlencode(PostData)
+        myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(newUrl,myHeaders,myCollectionCookie,PostData)
+        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
+        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
+        PostData = self.collect_postdata(myContent)
+        
+        self.logger.info('Status of Auto-Login third Step: %d' % myStatus)
+        myResults.append('HTTP : ' + str(myStatus)+'- Step 3 - login with credentials')
+        file=open("/tmp/alexa_step2.html","w")
+        file.write(myContent)
+        file.close
+        
+        #################################################################
+        ## done - third Step - logged in now go an get the goal (csrf)
+        #################################################################
+        
+        myHeaders ={
+                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                    "Accept-Language" : "de,en-US;q=0.7,en;q=0.3",
+                    "DNT" : "1",
+                    "Connection" : "keep-alive",
+                    "Accept-Encoding" : "gzip, deflate",
+                    "Referer" : "https://"+self.host+ "/spa/index.html",
+                    "Origin":"https://"+self.host
+                   }
+        Url = 'https://'+self.host+'/templates/oobe/d-device-pick.handlebars'
+        #Url = 'https://'+self.host+'/api/language'
+        
+        myStatus,myRespHeader, myRespCookie, myContent,myLocation = self.send_get_request(Url,myHeaders,myCollectionCookie)
+        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
+        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
+
+        myResults.append('HTTP : ' + str(myStatus)+'- Step 4 - get csrf')
+        self.logger.info('Status of Auto-Login fourth Step: %d' % myStatus)
+        
+        ####################################################
+        # check the csrf
+        ####################################################
+        myCsrf = self.search(myCollectionCookie, "csrf")
+        if myCsrf != None:
+            myResults.append('check CSRF- Step 5 - got good csrf')
+            self.logger.info('Status of Auto-Login fifth Step - got CSRF: %s' % myCsrf)
+            self.csrf = myCsrf
+        else:
+            myResults.append('check CSRF- Step 5 - got no CSRF')
+            self.logger.info('Status of Auto-Login fifth Step - got no CSRF')
+
+        ####################################################
+        # store the new Cookie-File
+        ####################################################
+        try:
+            with open (self.cookiefile, 'w') as myFile:
+                
+                
+                myFile.write("# AlexaRc4shNG HTTP Cookie File"+"\r\n")
+                myFile.write("# https://www.smarthomeng.de/user/"+"\r\n")
+                myFile.write("# This file was generated by alexarc4shng@smarthomeNG! Edit at your own risk."+"\r\n")
+                myFile.write("\r\n")
+                for line in myCollectionTxtCookie.splitlines():
+                    myFile.write(line+"\r\n")
+            myFile.close()            
+            myResults.append('created new cookie-File - Step 6 - done')
+            self.cookie = myCollectionCookie
+            self.login_state= self.check_login_state()
+            mytime = time.time()
+            file=open(self.update_file,"w")
+            file.write(str(mytime)+"\r\n")
+            file.close()
+            
+            myResults.append('login state : %s' % self.login_state)
+        except:
+            myResults.append('error while writing new cookie-File - Step 6')
+                        
+        return myResults
+    
     def auto_login(self):
+        myResults = self.auto_login_by_request()
+        return myResults
+        
         if self.credentials == '':
             return False
         # First delete tmp-Cookie
@@ -1000,7 +1282,7 @@ class alexarc4shng(SmartPlugin):
                      "DNT: 1",
                      "Upgrade-Insecure-Requests: 1",
                      "Connection: keep-alive",
-                     "Content-Type: text/plain;charset=UTF-8",
+                     "Content-Type: text/plain;charset=UTF-8"
                     ] 
     
         myCurl = pycurl.Curl()
@@ -1294,7 +1576,7 @@ class alexarc4shng(SmartPlugin):
             myResult = myCurl.getinfo(myCurl.RESPONSE_CODE)
             myCurl.close()
         except Exception as err:
-            print(err)
+            myResult = err
             
             
         
@@ -1490,10 +1772,34 @@ class WebInterface(SmartPluginWebIf):
             self.logger.debug('No devices found',err)
         
         return Device_items
-        
-        
+
     @cherrypy.expose
-    def storecookie_html(self, save=None, cookie_txt=None, txt_Result=None):
+    def store_credentials_html(self, encoded='', pwd = '', user= '', store_2_config=None):
+        txt_Result = []
+        myCredentials = user+':'+pwd
+        byte_credentials = base64.b64encode(myCredentials.encode('utf-8'))
+        encoded = byte_credentials.decode("utf-8")
+        txt_Result.append("encoded:"+encoded) 
+        txt_Result.append("Encoding done")
+        conf_file=self.plugin.sh.get_basedir()+'/etc/plugin.yaml'
+        if (store_2_config == 'true'):
+            new_conf = ""
+            with open (conf_file, 'r') as myFile:
+                for line in myFile:
+                    if line.find('alexa_credentials') > 0:
+                        line = '    alexa_credentials: '+encoded+ "\r\n"
+                    new_conf += line 
+            myFile.close()         
+            txt_Result.append("replaced credentials in temporary file")
+            with open (conf_file, 'w') as myFile:
+                for line in new_conf.splitlines():
+                    myFile.write(line+'\r\n')
+            myFile.close()
+            txt_Result.append("stored new config to filesystem")
+        return json.dumps(txt_Result)
+    
+    @cherrypy.expose
+    def storecookie_html(self, save=None, cookie_txt=None, txt_Result=None, txtUser=None, txtPwd=None, txtEncoded=None, store_2_config=None):
         myLines = cookie_txt.splitlines()
         #
         # Problem - different Handling of Cookies by Browser

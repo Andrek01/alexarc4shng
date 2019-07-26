@@ -3,7 +3,36 @@
 
 var selectedDevice;
 
+//*******************************************
+// Button Handler for Encoding credentials
+//*******************************************
 
+function BtnEncode(result)
+{
+      user = document.getElementById("txtUser").value;
+      pwd = document.getElementById("txtPwd").value;
+      store2config = document.getElementById("store_2_config").checked;
+      encoded=user+":"+pwd;
+      encoded=btoa(encoded);
+      //document.getElementById("txtEncoded").value = encoded;
+	$.ajax({
+		url: "store_credentials.html",
+		type: "GET",
+		data: { encoded : encoded,
+			user : user,
+		   	pwd : pwd,
+			store_2_config : store2config
+		      },
+		contentType: "application/json; charset=utf-8",
+		success: function (response) {
+				ValidateEncodeResponse(response);
+		},
+		error: function () {
+			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
+		}
+	});
+  return
+}
 //*******************************************
 // Button Handler LogIn to Amazon-Site
 //*******************************************
@@ -191,9 +220,32 @@ for (x in objResponse)
     }
 
 document.getElementById("txt_Result").innerHTML = temp;
-
-
 }
+
+//*************************************************************
+// ValidateEncodeResponse -checks the login-button
+//*************************************************************
+
+function ValidateEncodeResponse(response)
+{
+var myResult = ""
+var temp = ""
+var objResponse = JSON.parse(response)
+for (x in objResponse)
+    {
+     if (x == "0")
+ 	{
+	  document.getElementById("txtEncoded").value = objResponse[x].substr(8);	  
+	}
+     else
+	{
+	  temp = temp + objResponse[x]+"\n";
+	}
+    }
+
+document.getElementById("txt_Result").value = temp;
+}
+
 
 
 //*************************************************************
@@ -214,6 +266,7 @@ for (x in objResponse[0])
           temp = temp + objResponse[0][x]+"\n";
         }
     }
+
 document.getElementById("txtresult").value = temp;
 if (myResult == "OK")
 {

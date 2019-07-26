@@ -92,8 +92,26 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 * smarthomeNg 1.4.2 and above for the web-interface
 * a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
 * if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials [here](https://www.base64encode.org).
-If you enter your credentials like <strong>"user.test@test.gmail.com"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
+  If you enter your credentials like <strong>"user.test@test.gmail.com"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
 
+If you don trust the website for encoding you credential, you can do it in the python-console.
+Open a terminal and try the following code.
+
+```
+python3
+import base64
+base64.b64encode('user.test@test.gmail.com:your_pwd'.encode('utf-8'))
+
+you will get 
+
+b'dXNlci50ZXN0QHRlc3QuZ21haWwuY29tOnlvdXJfcHdk'
+
+use
+
+dXNlci50ZXN0QHRlc3QuZ21haWwuY29tOnlvdXJfcHdk
+ 
+for your credentials
+```
 
 
 If you get in trouble by installing pycurl, please try the following:
