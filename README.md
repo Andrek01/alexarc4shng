@@ -55,7 +55,11 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 #### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
 ## ChangeLog<a name="changelog"/>
-#### 2018.05.20  Versopm 1.0.1
+
+#### 2018.07.26  Version 1.0.1
+- Encoding credentials now possible on the Web-Interface (for security reason use this function to encode you credentials)
+
+#### 2018.05.20  Version 1.0.1
 - removed lib.scheduler - self.scheduler_add ist correct
 
 #### 2018.05.19 - Version 1.0.1
@@ -91,8 +95,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 * the plugin need pycurl (pip install pycurl or sudo -H pip install pycurl)
 * smarthomeNg 1.4.2 and above for the web-interface
 * a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
-* if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials [here](https://www.base64encode.org).
-  If you enter your credentials like <strong>"user.test@test.gmail.com"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
+* if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials on the web-interface of the plugin <strong>"user.test@test.gmail.com:your_pwd"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
 
 If you don trust the website for encoding you credential, you can do it in the python-console.
 Open a terminal and try the following code.
