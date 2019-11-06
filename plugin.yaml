@@ -85,7 +85,7 @@ parameters:
 
     login_update_cycle:
         type: num
-        default: 604800
+        default: 432000
         description:
             de: 'Sekunden bis zum automatischen refreshen des Cookie-files'
             en: 'seconds till the next automatic login to get a new cookie'

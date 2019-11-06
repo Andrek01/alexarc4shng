@@ -26,9 +26,10 @@
 from lib.module import Modules
 from lib.model.smartplugin import *
 from lib.item import Items
+from lib.shtime import Shtime
+
+
 from datetime import datetime
-
-
 from io import BytesIO
 import pycurl
 from subprocess import Popen, PIPE
@@ -123,6 +124,7 @@ class alexarc4shng(SmartPlugin):
         self.sh = self.get_sh()
         self.items = Items.get_instance()
         self.shngObjects = shngObjects()
+        self.shtime = Shtime.get_instance()
         
         # Init values
         self.header = ''
@@ -140,7 +142,7 @@ class alexarc4shng(SmartPlugin):
         self.credentials = base64.decodebytes(self.credentials).decode('utf-8')
         self.LoginUpdateCycle = self.get_parameter_value('login_update_cycle')
         self.update_file=self.sh.get_basedir()+"/plugins/alexarc4shng/lastlogin.txt"
-        
+        self.rotating_log = []
 
         if not self.init_webinterface():
             self._init_complete = False
@@ -407,6 +409,12 @@ class alexarc4shng(SmartPlugin):
                     if not tokenvalue is None:
                         return tokenvalue
     
+    # handle Protocoll Entries
+    def _insert_protocoll_entry(self, entry):
+        if len(self.rotating_log) > 400:
+            del self.rotating_log[400:]
+        self.rotating_log.insert (0,entry)
+        
     # Check if update of login is needed
     def check_refresh_login(self):
         my_file= self.update_file
@@ -481,12 +489,20 @@ class alexarc4shng(SmartPlugin):
             mySession.close()
             
             self.logger.info('Status of check_login_state: %d' % response.status_code)
+            
+            logline = str(self.shtime.now())[0:19] +' Status of check_login_state: %d' % response.status_code
+            self._insert_protocoll_entry(logline)
+            
             myAuth =myDict['authentication']['authenticated']
             if (myAuth == True):
                 self.logger.info('Login-State checked - Result: Logged ON' )
+                logline = str(self.shtime.now())[0:19] +' Login-State checked - Result: Logged ON'
+                self._insert_protocoll_entry(logline)
                 return True
             else:
                 self.logger.info('Login-State checked - Result: Logged OFF' )
+                logline = str(self.shtime.now())[0:19] +' Login-State checked - Result: Logged OFF' 
+                self._insert_protocoll_entry(logline)
                 return False
             
         
@@ -694,8 +710,8 @@ class alexarc4shng(SmartPlugin):
         
         for device in myDict['devices']:
             deviceFamily=device['deviceFamily']
-            if deviceFamily == 'WHA' or deviceFamily == 'VOX' or deviceFamily == 'FIRE_TV' or deviceFamily == 'TABLET':
-                continue
+            #if deviceFamily == 'WHA' or deviceFamily == 'VOX' or deviceFamily == 'FIRE_TV' or deviceFamily == 'TABLET':
+            #    continue
             try:
                 actName = device['accountName']
                 myDevices.put(Echo(actName))
@@ -1241,7 +1257,8 @@ class alexarc4shng(SmartPlugin):
                 for line in myCollectionTxtCookie.splitlines():
                     myFile.write(line+"\r\n")
             myFile.close()            
-            myResults.append('created new cookie-File - Step 6 - done')
+            
+            myResults.append('cookieFile- Step 6 - creation done')
             self.cookie = myCollectionCookie
             self.login_state= self.check_login_state()
             mytime = time.time()
@@ -1251,8 +1268,11 @@ class alexarc4shng(SmartPlugin):
             
             myResults.append('login state : %s' % self.login_state)
         except:
-            myResults.append('error while writing new cookie-File - Step 6')
+            myResults.append('cookieFile- Step 6 - error while writing new cookie-File')
                         
+        for entry in myResults:
+                logline = str(self.shtime.now())[0:19] + ' ' + entry 
+                self._insert_protocoll_entry(logline)
         return myResults
     
     def auto_login(self):
@@ -1583,9 +1603,12 @@ class alexarc4shng(SmartPlugin):
         self.logger.info('Status of log_off: %d' % myResult)
         
         if myResult == 200:
+            logline = str(self.shtime.now())[0:19] +' successfully logged off'
+            self._insert_protocoll_entry(logline)
             return "HTTP - " + str(myResult)+" successfully logged off"
         else:
-            return "HTTP - " + str(myResult)+" Erro while logging off"
+            logline = str(self.shtime.now())[0:19] +' Error while logging off'
+            return "HTTP - " + str(myResult)+" Error while logging off"
         
     
     ##############################################
@@ -1700,12 +1723,16 @@ class WebInterface(SmartPluginWebIf):
             self.set_cookie_pic(True)
         else:
             self.set_cookie_pic(False)
+            
+        log_file = ''
+        for line in self.plugin.rotating_log:
+            log_file += str(line)+'\n'
         
         myDevices = self.get_device_list()
         alexa_device_count = len(myDevices)
         
         login_info = self.plugin.last_update_time + '<font color="green"><strong>('+ self.plugin.next_update_time + ')</strong>' 
-        return self.render_template('index.html',device_list=myDevices,csrf_cookie=self.plugin.csrf,alexa_device_count=alexa_device_count,time_auto_login=login_info)
+        return self.render_template('index.html',device_list=myDevices,csrf_cookie=self.plugin.csrf,alexa_device_count=alexa_device_count,time_auto_login=login_info, log_file=log_file)
         '''
         tmpl = self.tplenv.get_template('index.html')
         return tmpl.render(plugin_shortname=self.plugin.get_shortname(), plugin_version=self.plugin.get_version(),

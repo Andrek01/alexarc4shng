@@ -1,6 +1,11 @@
 <!-- Functions in Scripts       -->
 <script src="./static/js/handler.js"></script>
-
+<style>
+.CodeMirror {
+font-family: Arial, monospace;
+font-size: 12px;
+}
+</style>
 <!-- Functions in Scripts       -->
 {% extends "base_plugin.html" %}
 
@@ -10,7 +15,7 @@
 {% set tab1title = 'Cookie Handling' %}
 {% set tab2title = 'Alexa Devices' %}
 {% set tab3title = 'Command Handling' %}
-{% set tab4title = 'to be defined' %}
+{% set tab4title = 'Communication-Protocol' %}
 
 {% block headtable %}
 <table class="table table-striped table-hover">
@@ -48,11 +53,11 @@
 
 	<table class="table table-striped table-hover">
 			<tr style="height: 10px;font-size: 12px" valign = "middle">
-				<td style="width: 5%; vertical-align:middle;align:left">Credentials :</td>
+				<td style="width: 10%; vertical-align:middle;align:left">Credentials:</td>
 				<td style="width: 15%" valign = "middle" align="left">
 			          <input type="input" style="margin-bottom: 1px; margin-left: 5px; width: 100%;font-size: 12px" class="form-control" name="txtUser" id="txtUser" placeholder="{{ _('Amazon-User') }}" value="">			
 				</td>
-				<td style="width: 8%" valign = "middle" align="left">
+				<td style="width: 10%" valign = "middle" align="left">
 			          <input type="input" style="margin-bottom: 1px; margin-left: 5px; width: 100%;font-size: 12px" class="form-control" name="txtPwd" id="txtPwd" placeholder="{{ _('Password') }}" value="">			
 				</td>
 				<td style="width: 10%; vertical-align:middle;align:left">
@@ -60,12 +65,13 @@
 				    <input type="checkbox" class="custom-control-input" id="store_2_config" name="store_2_config">
 				    <label class="custom-control-label" for="store_2_config">Store to Config</label>
 				</div>
-				</td>
-				<td style="width: 8%; vertical-align:middle;align:left">
+                </td>
+                <td style="width:10%">
 			          <button type="button" onclick="BtnEncode()"style="margin-left : 5px" class="btn btn-shng btn-sm" value="btnEncode" id="btnEncode">&nbsp;{{ _('Encode') }}</button>
-				</td>
-				<td style="width: 8%; vertical-align:middle;align:left">encoded Cred.:</td>
-				<td style="width: 30%" valign = "middle" align="left">
+                <td>
+				<td style="width: 10%; vertical-align:middle;align:left">encoded Cred.:
+                </td>
+                <td style="width: 45%; vertical-align:middle;align:left">
 			          <input type="input" style="margin-bottom: 1px; margin-left: 5px; width: 100%;font-size: 12px" class="form-control" name="txtEncoded" id="txtEncoded" placeholder="{{ _('Encoded Credentials') }}" value="">			
 				</td>
 			</tr>
@@ -139,7 +145,7 @@
 {% block bodytab2 %}
 <div class="table-responsive" id="AlexaDevices"  onclick="SelectDevice();" style="margin-left: 2px; margin-right: 2px;" class="row">
         <div class="col-sm-12">
-                        <table class="table table-striped table-hover pluginList">
+            <table class="table table-striped table-hover pluginList">
 			<thead>
 				<tr>
 					<th>{{ _('Alexa-Device-Name') }}</th>
@@ -160,7 +166,7 @@
 				</tr>
 			{% endfor %}
 			</tbody>
-		        </table>
+		    </table>
         </div>
 </div>
 
@@ -227,6 +233,7 @@ li.L5, li.L6, li.L7, li.L8
                         </div>
                     </div>
 
+
 </td>
 
 <td align"=left" valign="top">
@@ -272,6 +279,7 @@ li.L5, li.L6, li.L7, li.L8
 	</div>
         <div class="row" align="left" >
           <input style="margin-bottom: 1px; margin-left: 34px; width: 90%;visibility:hidden;" class="form-control" name="selectedDevice" id="selectedDevice" value="no Device selected"><br/>
+    	</div>
 	</div>
    
     <br>
@@ -279,7 +287,7 @@ li.L5, li.L6, li.L7, li.L8
 </form>
 </td>
 </tr>
-
+</table>
 <script>
     reloadCmds();
 
@@ -329,9 +337,59 @@ li.L5, li.L6, li.L7, li.L8
 {% endblock bodytab3 %}
 
 
+
 {% block bodytab4 %}
+<!--
+<table class="table table-striped table-hover">
+	<tbody>
+    <tr>
+        <td>
+        	<button id="btn_clear_proto_commun" class="btn btn-shng btn-sm" name="btn_clear_proto_commun" value="on" onclick="DeleteProto(this.name)"><i class="fas fa-trash-alt"></i>&nbsp;&nbsp;&nbsp;delete protocol&nbsp;</button>
+        </td>
+        <td>
+            <div class="custom-control custom-checkbox" style =" vertical-align:middle;align:left">
+                <input type="checkbox" class="custom-control-input" id="proto_commun_check" name="proto_commun_check">
+                <label class="custom-control-label" for="proto_commun_check">automatisch akutalisieren ( 5 Sek.)</label>
+            </div>
+        </td>
+    </tr>
+    </tbody>
+</table>
+-->
+<div class="container-fluid" style="overflow: none; border-left: 1px solid #ccc;height: 60%">
+    <div style="margin-bottom: 10px;">
+        {% if log_file %}<textarea autocomplete="off" id="log_file" name="log_file" >{% for line in log_file %}{% if not loop.last %}{{ line }}{% else %}{{ line  | replace('\n', '') }}{% endif %}{% endfor %}</textarea>{% else %}{{ _('no data available') }}{% endif %}
+    </div>
+</div>
+
+<script type="text/javascript" language="javascript">
+var logCodeMirror = CodeMirror.fromTextArea(document.getElementById("log_file"),
+ {
+    lineNumbers: true,
+    mode: "{{ mode }}",
+    readOnly: true,
+    indentUnit: 4,
+    lineSeparator: '\n',
+    mode: 'ttcn',
+    lineWrapping: false,
+    indentWithTabs: false,
+});
+
+window.addEventListener("resize", function(){resizeCodeMirror(logCodeMirror, 10)}, false);
+resizeCodeMirror(logCodeMirror, 10);
+logCodeMirror.refresh();
+
+$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+  var target = $(e.target).attr("href") // activated tab
+  if (target == "#bodytab_4")
+        { logCodeMirror.refresh(); }
+
+});
+
+</script>
 
 {% endblock bodytab4 %}
+
 
 
 <!-- -->
