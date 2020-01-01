@@ -145,7 +145,8 @@ When the cookie was successfull stored you can find you Echo-Devices on the Tab 
 
 <strong>Second possibility - with Credentials : </strong>
 
-When the plugin will be started and credentials are found in plugin.yaml, the plugin tests if the informations in the cookie-file are still guilty. If not the plugin tries to login with the credentials himself and stores the informations in the cookie-file. The cookie will updated in the cycle specified in "login_update_cycle" in the plugin.yaml
+When the plugin will be started and credentials are found in plugin.yaml, the plugin tests if the informations in the cookie-file are still valid. If not the plugin tries to login with the credentials itself and stores the informations in the cookie-file. The cookie will updated in the cycle specified in "login_update_cycle" in the plugin.yaml.
+It is possible to encode the credentials in the Web-Interface and automatically store them in the plugin.yaml. This is the recommended approach.
 
 ## Configuration <a name="config">
 
@@ -156,9 +157,12 @@ The attributes are : <br><br>
 class_name -> fix <br><br>
 class_path -> fix (depending on you configuration)<br><br>
 cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br><br>host -> the adress of you Alexa-WebInterface<br><br>Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7.<strong> This item is only checked during update_item in smarthomeNG. If you use the API directly from a logic or from the Webinterface the item will not be checked. In logics you have to check it yourself.</strong><br><br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login (for future releases)<br><br>
-alexa_credentials-> user:pwd (base64 encoded)<br><br>
+alexa_credentials-> user:pwd (*One* Stringbase64 encoded). Example below.<br><br>
 item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br><br>
 login_update_cycle->seconds to wait for automatic Login in to refresh the cookie (for future releases)<br><br>
+
+Example for the Credentials:
+user.test@test.gmail.com:dein_Passwort should result in dXNlci50ZXN0QHRlc3QuZ21haWwuY29tOmRlaW5fUGFzc3dvcnQ=
 
 
 
@@ -169,7 +173,7 @@ AlexaRc4shNG:
     cookiefile              : '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
     host                    : 'alexa.amazon.de'
     item_2_enable_alexa_rc  : YourRoom.YourItem.Item
-    alexa_credentials       : <User>:<PWD>
+    alexa_credentials       : <User>:<PWD> (*One* String, Base64 encoded)
     login_update_cycle      : Seconds for automatic refresh the cookie (default 604800 = 7 days)
 ```
 
