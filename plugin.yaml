@@ -20,7 +20,7 @@ plugin:
 plugin_functions:
     # Definition of function interface of the plugin
 
-    send_cmd_by_curl:
+    send_cmd:
         type: str
         description:
             de: "Sendet einen Befehl an Alexa."
