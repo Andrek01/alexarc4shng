@@ -1,6 +1,6 @@
 # AlexaRc4shNG
 
-#### Version 1.0.1
+#### Version 1.0.2
 
 The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets (functions). The follwing functions are available on the Web-Interface :
 
@@ -42,7 +42,8 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 - VolumeAdj (adjusts the volume during playing some media not working from webinterface test functions)
 - VolumeSet (sets the volume to value from 0-100 percent)
 
-### Placeholders :<a name="placeholders"/></a>
+<a name="placeholders"/></a>
+### Placeholders :
 ```yaml
 <mValue>                = Value to send as alpha
 <nValue>                = Value to send as numeric
@@ -56,11 +57,19 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 
 ## ChangeLog<a name="changelog"/>
 
+#### 2020.03.20 Version 1.0.2
+
+- removed pycurl
+- changed Communication to Python Requests
+- added translation for the Web-Interface
+- changed public function "send_cmd_by_curl" to "send_cmd"
+- added public function "get_last_alexa"
+
 #### 2018.07.26  Version 1.0.1
 - Encoding credentials now possible on the Web-Interface (for security reason use this function to encode you credentials)
 
 #### 2018.05.20  Version 1.0.1
-- removed lib.scheduler - self.scheduler_add ist correct
+- replaced lib.scheduler with self.scheduler_add
 
 #### 2018.05.19 - Version 1.0.1
 - changed version to 1.0.1
@@ -92,10 +101,10 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 
 ### Needed software
 
-* the plugin need pycurl (pip install pycurl or sudo -H pip install pycurl)
-* smarthomeNg 1.4.2 and above for the web-interface
+* smarthomeNg 1.5.2 and above for the web-interface
 * a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
-* if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials on the web-interface of the plugin <strong>"user.test@test.gmail.com:your_pwd"</strong> you will get <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t" </strong>. So please enter <strong>"dXNlci50ZXN0QHRlc3QuZ21haWwuY29t"</strong> in the /etc/plugin.yaml
+* if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials on the web-interface of the plugin <strong>"user.test@gmail.com:your_pwd"</strong> you will get <strong>```dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA==``` </strong>.
+So please enter <strong>```dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA==```</strong> in the /etc/plugin.yaml
 
 If you don trust the website for encoding you credential, you can do it in the python-console.
 Open a terminal and try the following code.
@@ -103,37 +112,26 @@ Open a terminal and try the following code.
 ```
 python3
 import base64
-base64.b64encode('user.test@test.gmail.com:your_pwd'.encode('utf-8'))
+base64.b64encode('user.test@gmail.com:your_pwd'.encode('utf-8'))
 
 you will get 
 
-b'dXNlci50ZXN0QHRlc3QuZ21haWwuY29tOnlvdXJfcHdk'
+b'dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA=='
 
 use
 
-dXNlci50ZXN0QHRlc3QuZ21haWwuY29tOnlvdXJfcHdk
+dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA==
  
 for your credentials
 ```
 
 
-If you get in trouble by installing pycurl, please try the following:
-
-```
- sudo apt-get update
- sudo apt-get install libcurl4-openssl-dev libssl-dev
- sudo apt-get install python3-dev
- wget https://dl.bintray.com/pycurl/pycurl/pycurl-7.43.0.2.tar.gz sudo chmod 777 pycurl-7.43.0.2.tar.gz
- tar -zxvf pycurl-7.43.0.2.tar.gz cd pycurl-7.43.0.2
- sudo apt-get upgrade sudo python3 setup.py install
-```
-
 
 ### Supported Hardware
 
-* all that supports smartHomeNG
+* all Amazon Echo-Devices
 
-## Cookie <a name="cookie"/>
+## Cookie <a name="cookie"></a>
 
 <strong>First possibility - without Credentials : </strong>
 
@@ -147,30 +145,31 @@ When the cookie was successfull stored you can find you Echo-Devices on the Tab 
 
 When the plugin will be started and credentials are found in plugin.yaml, the plugin tests if the informations in the cookie-file are still guilty. If not the plugin tries to login with the credentials himself and stores the informations in the cookie-file. The cookie will updated in the cycle specified in "login_update_cycle" in the plugin.yaml
 
-## Configuration <a name="config">
+## Configuration <a name="config"></a>
 
 ### plugin.yaml
 
 The plugin needs to be defined in the /etc/plugin.yaml in this way.<br><br>
-The attributes are : <br><br>
-class_name -> fix <br><br>
-class_path -> fix (depending on you configuration)<br><br>
-cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br><br>host -> the adress of you Alexa-WebInterface<br><br>Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7.<strong> This item is only checked during update_item in smarthomeNG. If you use the API directly from a logic or from the Webinterface the item will not be checked. In logics you have to check it yourself.</strong><br><br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login (for future releases)<br><br>
-alexa_credentials-> user:pwd (base64 encoded)<br><br>
-item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br><br>
-login_update_cycle->seconds to wait for automatic Login in to refresh the cookie (for future releases)<br><br>
+The attributes are : <br>
+plugin_name -> fix AlexaRc4shNG <br>
+
+cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br>
+host -> the adress of you Alexa-WebInterface<br>
+Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7.<strong> This item is only checked during update_item in smarthomeNG. If you use the API directly from a logic or from the Webinterface the item will not be checked. In logics you have to check it yourself.</strong><br><br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login<br>
+alexa_credentials-> user:pwd (base64 encoded)<br>
+item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br>
+login_update_cycle->seconds to wait for automatic Login in to refresh the cookie 
 
 
 
 ```yaml
 AlexaRc4shNG:
-    class_name              : alexarc4shng
-    class_path              : plugins.alexarc4shng
-    cookiefile              : '/usr/local/smarthome/plugins/alexarc4shng/cookies.txt'
-    host                    : 'alexa.amazon.de'
-    item_2_enable_alexa_rc  : YourRoom.YourItem.Item
-    alexa_credentials       : <User>:<PWD>
-    login_update_cycle      : Seconds for automatic refresh the cookie (default 604800 = 7 days)
+    plugin_name: AlexaRc4shNG
+    cookiefile: /usr/local/smarthome/plugins/alexarc4shng/cookies.txt
+    host: alexa.amazon.de
+    item_2_enable_alexa_rc: Item_to_enable_Alexaremote
+    alexa_credentials: <USER>:<PWD>
+    login_update_cycle: 432000
 ```
 
 
@@ -278,18 +277,18 @@ Example for settings in an item.conf file :
 Right now no logics are implemented. But you can trigger the functions by your own logic
 
 
-## Plugin-functions <a name="functions"/>
+## Plugin-functions <a name="functions"/></a>
 
 The plugin provides the following publich functions. You can use it for example in logics.
 
-### send_cmd_by_curl(dvName, cmdName, mValue)
+### send_cmd(dvName, cmdName, mValue)
 
 example how to use in logics:
 
 ```yaml
-sh.alexarc4shng.send_cmd_by_curl("yourDevice", "Text2Speech", "yourValue")
+sh.alexarc4shng.send_cmd("yourDevice", "Text2Speech", "yourValue")
 ---
-sh.alexarc4shng.send_cmd_by_curl('Kueche','Text2Speech','Der Sensor der Hebenlage signalisiert ein Problem.')
+sh.alexarc4shng.send_cmd('Kueche','Text2Speech','Der Sensor der Hebenlage signalisiert ein Problem.')
 ```
 Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
 You can find all this informations on the Web-Interface.
@@ -297,8 +296,14 @@ You can also user the [placeholders](#placeholders)
 
 - the result will be the HTTP-Status of the request as string (str)
 
+### get_last_alexa()
 
+This function returns the Device-Name of the last Echo Device which got a voice command. You can use it in logics to trigger events based on the last used Echo device.
 
+```yaml
+myLastDevice = sh.alexarc4shng.get_last_alexa()
+
+```
 # Web-Interface <a name="webinterface"/></a>
 
 The Webinterface is reachable on you smarthomeNG server here :<br>

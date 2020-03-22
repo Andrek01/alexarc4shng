@@ -63,13 +63,13 @@ font-size: 12px;
 				<td style="width: 10%; vertical-align:middle;align:left">
 				<div class="custom-control custom-checkbox" style =" vertical-align:middle;align:left">
 				    <input type="checkbox" class="custom-control-input" id="store_2_config" name="store_2_config">
-				    <label class="custom-control-label" for="store_2_config">Store to Config</label>
+				    <label class="custom-control-label" for="store_2_config">{{ _(Store to Config) }}</label>
 				</div>
                 </td>
                 <td style="width:10%">
 			          <button type="button" onclick="BtnEncode()"style="margin-left : 5px" class="btn btn-shng btn-sm" value="btnEncode" id="btnEncode">&nbsp;{{ _('Encode') }}</button>
                 <td>
-				<td style="width: 10%; vertical-align:middle;align:left">encoded Cred.:
+				<td style="width: 10%; vertical-align:middle;align:left">{{ _(encoded Cred.:) }}
                 </td>
                 <td style="width: 45%; vertical-align:middle;align:left">
 			          <input type="input" style="margin-bottom: 1px; margin-left: 5px; width: 100%;font-size: 12px" class="form-control" name="txtEncoded" id="txtEncoded" placeholder="{{ _('Encoded Credentials') }}" value="">			
