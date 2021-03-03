@@ -1,11 +1,11 @@
 # AlexaRc4shNG
 
-#### Version 1.0.2
+#### Version 1.0.3
 
 The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets (functions). The follwing functions are available on the Web-Interface :
 
 - Store a cookie-file to get access to the Alexa-WebInterface
-- manually Login with your credentials (sored in the /etc/plugin.yaml)
+- manually Login with your credentials (stored in the /etc/plugin.yaml)
 - See all available devices, select one to send Test-Functions
 - define Commandlets - you can load,store,delete, check and test Commandlets
 - the Commandlets can be loaded to the webinterface by clicking on the list
@@ -28,7 +28,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 5. [Configuration](#config)
 6. [functions](#functions)
 7. [Web-Interface](#webinterface)
-8. [How to implmentend new Commands](#newCommand)
+8. [How to implement new Commands](#newCommand)
 9. [Tips for existing Command-Lets](#tipps)
 
 ### Existing Command-Lets
@@ -47,7 +47,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 ```yaml
 <mValue>                = Value to send as alpha
 <nValue>                = Value to send as numeric
-#item.path/#            = item-path of the value that should be inserted into text or ssml
+"#item.path/#"            = item-path of the value that should be inserted into text or ssml
 <serialNumber>          = SerialNo. of the device where the command should go to
 <familiy>               = device family
 <deviceType>            = deviceType
@@ -57,12 +57,20 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 
 ## ChangeLog<a name="changelog"/>
 
+#### 2021.02.10 Version 1.0.3
+
+- added MFA for Auto-Login
+- <strong>added new Parameter (mfa_secret) in the etc/plugin.yaml</strong>
+- added Step by Step Setup in Web-IF for MFA  
+- added public function to get the ToDo-List
+- added public function to get the Shopping-List
+
 #### 2020.03.20 Version 1.0.2
 
+- <strong>changed public function "send_cmd_by_curl" to "send_cmd"</strong>
 - removed pycurl
 - changed Communication to Python Requests
 - added translation for the Web-Interface
-- changed public function "send_cmd_by_curl" to "send_cmd"
 - added public function "get_last_alexa"
 
 #### 2018.07.26  Version 1.0.1
@@ -75,7 +83,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 - changed version to 1.0.1
 - changed to lib.item and lib.scheduler
 - the credentials have to be stored in base64 encoded
-- Login / LogOff Button to the Web-Interface
+- added Login / LogOff Button to the Web-Interface
 - added Auto-Login function - when there is no cookie-file with correct values and credentials are specicified, the plugin automaticaly logs in
 - the log-in (the cookie) will be refreshed after the login_update_cycle
 - changed methods-names and parameters to lower case and underscore separated names
@@ -102,6 +110,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 ### Needed software
 
 * smarthomeNg 1.5.2 and above for the web-interface
+* needs Python requests
 * a valid [Cookie](#cookie) from an alexa.amazon-Web-Site Session
 * if you work with Autologin the credentials have to be entered "base64"-encoded. You can encode you credentials on the web-interface of the plugin <strong>"user.test@gmail.com:your_pwd"</strong> you will get <strong>```dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA==``` </strong>.
 So please enter <strong>```dXNlci50ZXN0QGdtYWlsLmNvbTp5b3VyX3B3ZA==```</strong> in the /etc/plugin.yaml
@@ -159,17 +168,18 @@ Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the 
 alexa_credentials-> user:pwd (base64 encoded)<br>
 item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br>
 login_update_cycle->seconds to wait for automatic Login in to refresh the cookie 
-
+mfa_secret-> The MFA-Secret you got from Amazon-Website (fill it out with the Web-Interface)
 
 
 ```yaml
 AlexaRc4shNG:
-    plugin_name: AlexaRc4shNG
+    plugin_name: alexarc4shng
     cookiefile: /usr/local/smarthome/plugins/alexarc4shng/cookies.txt
     host: alexa.amazon.de
     item_2_enable_alexa_rc: Item_to_enable_Alexaremote
     alexa_credentials: <USER>:<PWD>
     login_update_cycle: 432000
+    mfa_secret: <YOUR MFA-Secret>
 ```
 
 
@@ -286,9 +296,9 @@ The plugin provides the following publich functions. You can use it for example 
 example how to use in logics:
 
 ```yaml
-sh.alexarc4shng.send_cmd("yourDevice", "Text2Speech", "yourValue")
+sh.AlexaRc4shNG.send_cmd("yourDevice", "Text2Speech", "yourValue")
 ---
-sh.alexarc4shng.send_cmd('Kueche','Text2Speech','Der Sensor der Hebenlage signalisiert ein Problem.')
+sh.AlexaRc4shNG.send_cmd('Kueche','Text2Speech','Der Sensor der Hebenlage signalisiert ein Problem.')
 ```
 Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
 You can find all this informations on the Web-Interface.
@@ -301,7 +311,7 @@ You can also user the [placeholders](#placeholders)
 This function returns the Device-Name of the last Echo Device which got a voice command. You can use it in logics to trigger events based on the last used Echo device.
 
 ```yaml
-myLastDevice = sh.alexarc4shng.get_last_alexa()
+myLastDevice = sh.AlexaRc4shNG.get_last_alexa()
 
 ```
 # Web-Interface <a name="webinterface"/></a>

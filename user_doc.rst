@@ -1,8 +1,13 @@
 .. index:: Plugins; Remote Control for Alexa devices
-.. index:: AlexaRc4shNG
+.. index:: alexarc4shng
 
+
+============
 alexarc4shng
-###
+============
+
+Plugin zur Steuerung von Amazon Echo Geräten Zugriff via Web-Browser API und Cookie.
+
 
 Konfiguration
 =============
@@ -16,10 +21,10 @@ Web Interface
 Das AlexaRc4shNG Plugin verfügt über ein Webinterface.Hier werden die Zugangsdaten zur Amazon-Web-Api (Cookie) gepflegt.
 Es können neue Kommandos erstellt werden
 
-.. important:: 
+.. important::
 
-   Das Webinterface des Plugins kann mit SmartHomeNG v1.4.2 und davor **nicht** genutzt werden.
-   Es wird dann nicht geladen. Diese Einschränkung gilt nur für das Webinterface. Ansonsten gilt 
+   Das Webinterface des Plugins kann mit SmartHomeNG v1.5.2 und davor **nicht** genutzt werden.
+   Es wird dann nicht geladen. Diese Einschränkung gilt nur für das Webinterface. Ansonsten gilt
    für das Plugin die in den Metadaten angegebene minimale SmartHomeNG Version.
 
 
@@ -37,19 +42,19 @@ Beispiele
 
 Folgende Informationen können im Webinterface angezeigt werden:
 
-Oben rechts werden allgemeine Parameter zum Plugin angezeigt. 
+Oben rechts werden allgemeine Parameter zum Plugin angezeigt.
 
 Im ersten Tab kann das Cookie File gespeichert werden - in die Textarea via Cut & Paste einfügen und speichern:
 
 .. image:: assets/webif1.jpg
    :class: screenshot
 
-Im zweiten Tab werden die verfügbaren Geräte angezeigt - Durch click auf eine Gerät wird dieses selektiert und steht für Tests zur Verfügung:
+Im zweiten Tab werden die verfügbaren Geräte angezeigt - Durch click auf ein Gerät wird dieses selektiert und steht für Tests zur Verfügung:
 
 .. image:: assets/webif2.jpg
    :class: screenshot
 
-Im dritten Tab werden die Commandlets verwaltet - mit Clickauf die Liste der Commandlets wird dieses ins WebIF geladen:
+Im dritten Tab werden die Commandlets verwaltet - mit Click auf die Liste der Commandlets wird dieses ins WebIF geladen:
 
 .. image:: assets/webif3.jpg
    :class: screenshot

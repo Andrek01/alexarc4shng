@@ -1,1 +1,2 @@
-pycurl>=7.43.0;python_version>'3.2'
+requests
+pyotp >= 2.6.0
