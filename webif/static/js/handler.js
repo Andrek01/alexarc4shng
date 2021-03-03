@@ -248,7 +248,7 @@ function BtnHandleMFA(step)
 	  myChildWindows = window.open('https://www.amazon.de/a/settings/approval', '_blank', 'location=yes,scrollbars=yes,status=yes');
 	  ValidateMFAResponse(JSON.stringify(data));
 	  // Just for Tests
-	  document.getElementById("txtMFA").value = "4BLF6IO5JJHWOI4UAZUMCLOH4T6UL5S5YJ3WSTMJRL4NUONRQI6Q"; 
+	  // document.getElementById("txtMFA").value = "4BLF6IO5JJHWOI4UAZUMCLOH4T6UL5S5YJ3WSTMJRL4NUONRQI6Q"; 
 	  break
 	  }
   case 3:
