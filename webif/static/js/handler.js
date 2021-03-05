@@ -55,7 +55,10 @@ function PublicAjax(url, data)
 				ValidateMFAResponse(response);
 		},
 		error: function (xhr, status, error) {
-			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
+			document.getElementById("Tooltip").innerHTML= "<div><strong>Error</strong><br><br>Error while Communication !</div>"
+		    document.getElementById("Tooltip").style.backgroundColor="red"
+	    	 
+			
 			$("#reload-element").removeClass("fa-spin");
             $("#MFAcardOverlay").hide();
 		}
@@ -70,6 +73,7 @@ function ValidateMFAResponse(response)
 	myData = JSON.parse(response)
 	if (myData.Status == 'OK')
 		{
+		 document.getElementById("Tooltip").style.backgroundColor="#d4edda" 
 		 myStep = parseInt(myData.Step.substr(4,1))
 		 document.getElementById("Status_" + String(+myStep)).classList.add("fa-check-circle")
 		 document.getElementById("Status_" + String(+myStep)).classList.remove("fa-exclamation-triangle")
@@ -79,10 +83,10 @@ function ValidateMFAResponse(response)
 	     case 1:
 	    	 {
 	    	   myToolTip = "<div>"
-	    	   myToolTip +=  "<strong>open Amazon-Site and create an new APP</strong><br>"
-		       myToolTip +=  "Amazon-Web-Site will be opened automatically "
-			   myToolTip +=  "Create a new APP "		    	   
-	    	   myToolTip +=  "select barcode could not be read and copy the shown MFA-Secret to to clipboard. "
+	    	   myToolTip +=  "<strong>open Amazon-Site and create a new APP</strong><br><br>"
+		       myToolTip +=  "- Amazon-Web-Site will be opened automatically by pressing the button<br>"
+			   myToolTip +=  "- Create a new APP<br>"		    	   
+	    	   myToolTip +=  '- Select <strong>"barcode could not be read"</strong> and copy the shown MFA-Secret to to clipboard.<br>'
 	    	   myToolTip +=  "<br>Press the button to continue"
 	    	   myToolTip +=  "</div>"
 	    	   document.getElementById("Tooltip").innerHTML= myToolTip
@@ -92,10 +96,10 @@ function ValidateMFAResponse(response)
 	    	 {
 	    	   myToolTip = "<div>"
 	    	   myToolTip +=  "<strong>Insert the MFA-Secret</strong><br>"
-	    	   myToolTip += "Insert the copied MFA-Secret to the AlexaRc4shNG-Web-Interface<br>"
-	    	   myToolTip += "after you have inserted the copied MFA-Secret, by pressing the button the OTP-Code will be calcualted by the plugin. "
-	       	   myToolTip += "The calculated Code will be shown on the Web-Interface and automatically copied to the Clipboard. "    		   
-	       	   myToolTip += "Please insert the OTP-code to the amazon-site, when the OTP is accepted please confirm. "	    		   
+	    	   myToolTip += "- Insert the copied MFA-Secret to the AlexaRc4shNG-Web-Interface<br>"
+	    	   myToolTip += "- After you have inserted the copied MFA-Secret, by pressing the button the OTP-Code will be calcualted by the plugin.<br>"
+	       	   myToolTip += "- The calculated Code will be shown on the Web-Interface and automatically copied to the Clipboard.<br>"    		   
+	       	   myToolTip += "- Please insert the OTP-code to the amazon-site, when the OTP is accepted please confirm.<br>"	    		   
 	    	   myToolTip += "<br>Press the button to continue"
 	    	   myToolTip += "</div>"
 	    	   document.getElementById("Tooltip").innerHTML= myToolTip
@@ -132,17 +136,12 @@ function ValidateMFAResponse(response)
 	    	 }
 	     case 6:
 	    	 {
-
-	    	   break;
-	    	 }	    	 	    	 
-	     case 7:
-	    	 {
-	    	   document.getElementById("Status_" + String(+myStep)).classList.add("fa-check-circle")
-			   document.getElementById("Status_" + String(+myStep)).classList.remove("fa-exclamation-triangle")
-			   document.getElementById("Status_" + String(+myStep)).style.color = "green"
-			   document.getElementById("Status_" + String(+myStep)+"_1").classList.add("fa-check-circle")
-			   document.getElementById("Status_" + String(+myStep)+"_1").classList.remove("fa-exclamation-triangle")
-			   document.getElementById("Status_" + String(+myStep)+"_1").style.color = "green"
+	    	   document.getElementById("Status_" + String(+myStep+1)).classList.add("fa-check-circle")
+			   document.getElementById("Status_" + String(+myStep+1)).classList.remove("fa-exclamation-triangle")
+			   document.getElementById("Status_" + String(+myStep+1)).style.color = "green"
+			   document.getElementById("Status_" + String(+myStep+1)+"_1").classList.add("fa-check-circle")
+			   document.getElementById("Status_" + String(+myStep+1)+"_1").classList.remove("fa-exclamation-triangle")
+			   document.getElementById("Status_" + String(+myStep+1)+"_1").style.color = "green"
 						 
 	    	   myToolTip = "<div>"
 	    	   myToolTip +=  "<strong>Successfully done</strong><br>"
@@ -154,7 +153,6 @@ function ValidateMFAResponse(response)
  			   document.getElementsByTagName("img")[0].src="static/img/alexa_cookie_good.png"
  			   document.getElementById('btnMfaReset').style.visibility="hidden"
  			   document.getElementById('btnMfaReload').style.visibility="visible" 				   
- 			   document.getElementById("Line_" + String(+myStep)).style.visibility = "visible"	  
 	    	   break;
 	    	 }
 	     }
@@ -173,8 +171,31 @@ function ValidateMFAResponse(response)
 		 document.getElementById("Status_" + String(+myStep)).style.color = "red"
 	     switch (myStep)
 		     {
-		     case 7:
+		     case 3:
 		    	 {
+		    	 myToolTip = "<div>"
+				 myToolTip += "<strong>Error</strong><br>"
+			     myToolTip += "<br>"+myData.data.Message
+				 myToolTip += "<br>Please reload page"
+				 myToolTip += "</div>"
+				 document.getElementById("Tooltip").innerHTML= myToolTip
+				 document.getElementById("Tooltip").style.backgroundColor="red"
+		    	 break;
+		    	 }
+		     case 5:
+	    	 {
+		    	 myToolTip = "<div>"
+				 myToolTip += "<strong>Error</strong><br>"
+			     myToolTip += "<br>"+myData.data.Message
+				 myToolTip += "<br>Please reload page"
+				 myToolTip += "</div>"
+				 document.getElementById("Tooltip").innerHTML= myToolTip
+				 document.getElementById("Tooltip").style.backgroundColor="red"
+		    	 break;
+	    	 }		    	 
+		     case 6:
+		    	 {
+		    	 myStep += 1
 		    	 document.getElementById("Status_" + String(+myStep)+"_1").classList.remove("fa-check-circle")
 				 document.getElementById("Status_" + String(+myStep)+"_1").classList.add("fa-exclamation-triangle")
 				 document.getElementById("Status_" + String(+myStep)+"_1").style.color = "red"
@@ -247,9 +268,7 @@ function BtnHandleMFA(step)
 	  data["Status"]="OK";
 	  myChildWindows = window.open('https://www.amazon.de/a/settings/approval', '_blank', 'location=yes,scrollbars=yes,status=yes');
 	  ValidateMFAResponse(JSON.stringify(data));
-	  // Just for Tests
-	  // document.getElementById("txtMFA").value = "4BLF6IO5JJHWOI4UAZUMCLOH4T6UL5S5YJ3WSTMJRL4NUONRQI6Q"; 
-	  break
+	  break;
 	  }
   case 3:
 	  {

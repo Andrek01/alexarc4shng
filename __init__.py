@@ -1418,18 +1418,30 @@ class WebInterface(SmartPluginWebIf):
             myUser = myCommand["data"]["User"]
             myPwd = myCommand["data"]["Pwd"]
             myResult = self.store_credentials_html('', myPwd, myUser, True, '', False)
+            
             txt_Result["Status"] = "OK"
             txt_Result["Step"] = myOrder
             txt_Result["data"] = { "Result" : myResult }
+            
         
         elif myOrder =="Step3":
             myMFA = myCommand["data"]["MFA"]
             myMFA = myMFA.replace(" ","")
-            totp = pyotp.TOTP(myMFA)
-            mfaCode = totp.now() 
-            txt_Result["Status"] = "OK"
-            txt_Result["Step"] = myOrder
-            txt_Result["data"] = { "OTPCode" : mfaCode }
+            if (len(myMFA) != 52):
+                txt_Result["Status"] = "ERROR"
+                txt_Result["Step"] = myOrder
+                txt_Result["data"] = { "Message" : "MFA - code has not correct length (should be 52)<br>Try again" }
+            else:
+                try:
+                    totp = pyotp.TOTP(myMFA)
+                    mfaCode = totp.now() 
+                    txt_Result["Status"] = "OK"
+                    txt_Result["Step"] = myOrder
+                    txt_Result["data"] = { "OTPCode" : mfaCode }
+                except err as Exception:
+                    txt_Result["Status"] = "ERROR"
+                    txt_Result["Step"] = myOrder
+                    txt_Result["data"] = { "Message" : "OTP could not calculated something seems to be wrong with the MFA<br>Try again" }
         
         elif myOrder =="Step5":
             myMFA = myCommand["data"]["MFA"]
@@ -1437,15 +1449,20 @@ class WebInterface(SmartPluginWebIf):
             myUser = myCommand["data"]["User"]
             myPwd = myCommand["data"]["Pwd"]
             myResult = self.store_credentials_html('', myPwd, myUser, True, myMFA, False)
-            txt_Result["Status"] = "OK"
-            txt_Result["Step"] = myOrder
-            txt_Result["data"] = { "Result" : myResult }
+            if ('stored new config to filesystem' in myResult):
+                txt_Result["Status"] = "OK"
+                txt_Result["Step"] = myOrder
+                txt_Result["data"] = { "Result" : myResult }
+            else:
+                txt_Result["Status"] = "ERROR"
+                txt_Result["Step"] = myOrder
+                txt_Result["data"] = { "Message" : 'could not store Credentials + MFA to /etc/plugin.yaml' }
         
         elif myOrder =="Step6":
             if (myCommand["data"]["command"] == 'login'):
                 myResult=self.plugin.auto_login_by_request()
                 txt_Result["Status"] = "OK"
-                txt_Result["Step"] = "Step7"
+                txt_Result["Step"] = myOrder
                 txt_Result["data"] = { "Result" :{ "LoginState" : self.plugin.login_state} }
         
             
@@ -1519,7 +1536,7 @@ class WebInterface(SmartPluginWebIf):
         txt_Result.append("encoded:"+encoded) 
         txt_Result.append("Encoding done")
         conf_file=self.plugin.sh.get_basedir()+'/etc/plugin.yaml'
-        if (store_2_config == 'true'):
+        if (store_2_config == True):
             new_conf = ""
             with open (conf_file, 'r') as myFile:
                 for line in myFile:
