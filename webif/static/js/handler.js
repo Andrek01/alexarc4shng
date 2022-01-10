@@ -97,10 +97,8 @@ function ValidateMFAResponse(response)
 	    	   myToolTip = "<div>"
 	    	   myToolTip +=  "<strong>Insert the MFA-Secret</strong><br>"
 	    	   myToolTip += "- Insert the copied MFA-Secret to the AlexaRc4shNG-Web-Interface<br>"
-	    	   myToolTip += "- After you have inserted the copied MFA-Secret, by pressing the button the OTP-Code will be calcualted by the plugin.<br>"
-	       	   myToolTip += "- The calculated Code will be shown on the Web-Interface and automatically copied to the Clipboard.<br>"    		   
-	       	   myToolTip += "- Please insert the OTP-code to the amazon-site, when the OTP is accepted please confirm.<br>"	    		   
-	    	   myToolTip += "<br>Press the button to continue"
+	    	   myToolTip += '- After you have inserted the copied MFA-Secret, by pressing the button „Code berechnen“ the OTP-Code will be calculated by the plugin.<br>'
+   	    	   myToolTip += "<br>Press the button to continue"
 	    	   myToolTip += "</div>"
 	    	   document.getElementById("Tooltip").innerHTML= myToolTip
 	    	   break;
@@ -108,7 +106,9 @@ function ValidateMFAResponse(response)
 	     case 3:
 	    	 {
 	    	   myToolTip = "<div>"
-	       	   myToolTip +=  "<strong>Confirm that your code was accepted</strong><br>"	       		   
+    		   myToolTip += "- The calculated Code will be shown on the Web-Interface and automatically copied to the Clipboard.<br>"
+   	       	   myToolTip += "- Please insert the OTP-code to the amazon-site, when the OTP is accepted please confirm.<br>"
+   			   myToolTip += " <strong>(you need two tries to insert it from clipboard, on first try the amazon-Website would not accept the code from clipboard</strong>)<br>"
 	    	   myToolTip += "<br>Press the button to continue"
 	    	   myToolTip += "</div>"
 	    	   document.getElementById("Tooltip").innerHTML= myToolTip
@@ -805,8 +805,8 @@ function ShowCommand(response,txtCmdName)
 		 myjson = objResponse[0][x].split("'").join("\"");
 		 myjson = myjson.split("\\").join("");
 		 var myTest = JSON.stringify(JSON.parse(myjson),null,2)
-	  	 myCodeMirrorPayload.setValue(myTest);
-	  	 myCodeMirrorPayload.focus;
+ 	   myCodeMirrorPayload.setValue(myTest);
+	   myCodeMirrorPayload.focus;
 		 myCodeMirrorPayload.setCursor(myCodeMirrorPayload.lineCount(),0);
 		}
 	    }

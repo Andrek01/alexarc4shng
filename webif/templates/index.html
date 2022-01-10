@@ -97,7 +97,7 @@ font-size: 12px;
 				  <input name="save" value="{{ _('Store Cookie') }}" onclick="BtnStoreCookie()"  class="btn btn-shng btn-sm"></br>
 				</td>
 				<td style="width: 10%"> 
-				  <input id="reloadPage" name="reloadPage" value="{{ _('Reload Page') }}" onclick="location.reload()"  class="btn btn-shng btn-sm" style="visibility:hidden; background-color:lightgreen; color:black">
+				  <input id="reloadPage" name="reloadPage" value="{{ _('Reload Page') }}" onclick="document.getElementById('reload').click()"  class="btn btn-shng btn-sm" style="visibility:hidden; background-color:lightgreen; color:black">
 				</td>				
 			</tr>
 	</table>
@@ -295,7 +295,7 @@ font-size: 12px;
 
         <td style="vertical-align: middle;">
           <button type="button" onclick="mfaReset()"style="margin-left : 5px;width:250px; visibility:hidden" class="btn btn-shng btn-sm" id="btnMfaReset">{{ _('Reset') }}</button>
-          <button type="button" onclick="location.reload()" style="margin-left : 5px;width:250px; visibility:hidden;background-color: green;" class="btn btn-shng btn-sm" id="btnMfaReload"> {{ _('Reload Page') }}</button>
+          <button type="button" onclick="document.getElementById('reload').click()" style="margin-left : 5px;width:250px; visibility:hidden;background-color: green;" class="btn btn-shng btn-sm" id="btnMfaReload"> {{ _('Reload Page') }}</button>
         </td>
       <td style="border-radius: 10px;padding: .25rem .5rem;text-align: right; vertical-align: middle;">
         <i id="Status_7_1" class="fas fa-check-circle" style="font-size: 45px; color: green;"></i>

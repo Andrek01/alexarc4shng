@@ -967,7 +967,7 @@ class AlexaRc4shNG(SmartPlugin):
             result =  "Status|OK\n"
             result += "Description|"+myDescription+"\n"
             result += "myUrl|"+myUrl+"\n"
-            result += "payload|"+str(myDict)+"\n"
+            result += "payload|"+json.dumps(myDict)+"\n"
         except Exception as err:
             result =  "Status|failure\n"
             result += "value1|"+err.args[0]+"\n"
@@ -1417,7 +1417,7 @@ class WebInterface(SmartPluginWebIf):
         if myOrder == "Step1":
             myUser = myCommand["data"]["User"]
             myPwd = myCommand["data"]["Pwd"]
-            myResult = self.store_credentials_html('', myPwd, myUser, True, '', False)
+            myResult = self.store_credentials_html('', myPwd, myUser, False, '', False)
             
             txt_Result["Status"] = "OK"
             txt_Result["Step"] = myOrder
@@ -1552,6 +1552,7 @@ class WebInterface(SmartPluginWebIf):
                     myFile.write(line+'\r\n')
             myFile.close()
             txt_Result.append("stored new config to filesystem")
+            self.plugin.credentials = myCredentials
         if login == True:
             if (mfa != '' and self.plugin.ImportPyOTPError == False):
                 # Try to login asap with MFA

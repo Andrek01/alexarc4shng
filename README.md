@@ -38,7 +38,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 - Pause (pauses the actual media)
 - Text2Speech (sends a Text to the echo, echo will speak it)
 - StartTuneInStation (starts a TuneInRadiostation with the guideID you send)
-- SSML (Speak to Text with[Speech Synthesis Markup Language](https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html))
+- SSML (Speak to Text with [Speech Synthesis Markup Language](https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html))
 - VolumeAdj (adjusts the volume during playing some media not working from webinterface test functions)
 - VolumeSet (sets the volume to value from 0-100 percent)
 
@@ -47,7 +47,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 ```yaml
 <mValue>                = Value to send as alpha
 <nValue>                = Value to send as numeric
-"#item.path/#"            = item-path of the value that should be inserted into text or ssml
+"#item.path/#"          = item-path of the value that should be inserted into text or ssml
 <serialNumber>          = SerialNo. of the device where the command should go to
 <familiy>               = device family
 <deviceType>            = deviceType
@@ -212,12 +212,15 @@ alexa_cmd_01: True:EchoDotKueche:StartTuneInStation:s96141
 Value           = <20.0 - send command when value of the item becomes less then 20.0
 EchodotKueche   = Devicename where the Command should be send to
 Text2Speech     = Name of the Commandlet
-Value_to_Send   = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad #test.testzimmer.temperature.actual/# = item-path of the value that should be inserted
+Value_to_Send   = Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad 
 ```
 
+```yaml
+#test.testzimmer.temperature.actual/# = item-path of the value that should be inserted
+```
 <strong>example:<br></strong>
 `
-alexa_cmd_01: <20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt \#test.testzimmer.temperature.actual/\# Grad
+alexa_cmd_01: <20.0:EchoDotKueche:Text2Speech:Die Temperatur in der Kueche ist niedriger als 20 Grad Die Temperatur ist jetzt #test.testzimmer.temperature.actual/# Grad
 `
 
 You can find the paths of the items on the backend-WebInterface - section items.
@@ -275,12 +278,13 @@ Example for settings in an item.conf file :
         alexa_cmd_01 = '"True:EchoDotKueche:StartTuneInStation:s96141"
         alexa_cmd_02 ="True:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist eingeschalten"
         alexa_cmd_03 = "False:EchoDotKueche:Text2Speech:Hallo das Licht im Buero ist aus"
-        alexa_cmd_04 = "False:EchoDotKueche:Pause: "
+        alexa_cmd_04 = "False:EchoDotKueche:Pause:"
         visu_acl = rw
         knx_dpt = 1
         knx_listen = 1/1/105
         knx_send = 1/1/105
-        enforce_updates = truey_attr: setting
+        enforce_updates = true
+        
 ```
 
 ### logic.yaml
@@ -291,7 +295,7 @@ Right now no logics are implemented. But you can trigger the functions by your o
 
 The plugin provides the following publich functions. You can use it for example in logics.
 
-### send_cmd(dvName, cmdName, mValue)
+### send_cmd(dvName:str, cmdName:str, mValue:str)
 
 example how to use in logics:
 
@@ -302,7 +306,7 @@ sh.AlexaRc4shNG.send_cmd('Kueche','Text2Speech','Der Sensor der Hebenlage signal
 ```
 Sends a command to the device. "dvName" is the name of the device,  "cmdName" is the name of the CommandLet, mValue is the value you would send.
 You can find all this informations on the Web-Interface.
-You can also user the [placeholders](#placeholders)
+You can also use the [placeholders](#placeholders)
 
 - the result will be the HTTP-Status of the request as string (str)
 
@@ -314,6 +318,21 @@ This function returns the Device-Name of the last Echo Device which got a voice 
 myLastDevice = sh.AlexaRc4shNG.get_last_alexa()
 
 ```
+
+### get_list(type:str)
+
+This function returns the ToDo or the Shopping list - depending on "type" as dict<br>
+
+valid types are :
+```yaml
+  'SHOPPING_LIST'
+  'TO_DO'
+```
+
+
+```yaml
+sh.AlexaRc4shNG.get_list(type:str)
+  ```
 # Web-Interface <a name="webinterface"/></a>
 
 The Webinterface is reachable on you smarthomeNG server here :<br>
