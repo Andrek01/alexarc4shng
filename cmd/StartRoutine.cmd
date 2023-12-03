@@ -1,0 +1,4 @@
+apiurl|/api/behaviors/preview
+description|Start a routine
+json|{"behaviorId": "amzn1.alexa.automation.46f75c3a-2521-4c31-b9f9-cf6a448732f5", "status": "ENABLED", "sequenceJson": {"@type": "com.amazon.alexa.behaviors.model.Sequence", "sequenceId": "amzn1.alexa.sequence.fb409fab-2edf-41aa-bb69-a05122fa378a", "startNode": {"@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode", "nodeState": null, "name": "Optional.empty", "type": "Alexa.Music.PlaySearchPhrase", "skillId": "amzn1.ask.1p.music", "operationPayload": {"customerId": "A145HAI7HRJWX3", "deviceType": "A3S5BH2HU6VAYF", "deviceSerialNumber": "G090LF1180470RJS", "musicProviderId": "SPOTIFY", "searchPhrase": "Andre", "sanitizedSearchPhrase": "andre", "locale": "de-DE"}, "presentationDataList": null, "clientData": null, "context": null, "tag": null}}}
+myReqType|POST

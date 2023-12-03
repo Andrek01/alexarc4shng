@@ -46,11 +46,8 @@ from urllib.parse import urlencode
 
 
 
-ImportPyOTPError = False
-try:
-    import pyotp
-except Exception as err:
-    ImportPyOTPError = True
+
+
 
 class shngObjects(object):
     def __init__(self):
@@ -91,7 +88,10 @@ class EchoDevices(object):
         return id in self.devices
 
     def get(self, id):
-        return self.devices[id]
+        if id in self.devices:
+            return self.devices[id]
+        else:
+            return None
 
     def put(self, device):
         self.devices[device.id] = device
@@ -103,6 +103,18 @@ class EchoDevices(object):
         for device in self.devices:
             if (serialNo == self.devices[device].serialNumber):
                 return self.devices[device].id
+    def get_Volume_by_Serial(self, serialNo):
+        for device in self.devices:
+            if (serialNo == self.devices[device].serialNumber):
+                return self.devices[device].volume
+    def set_Volume_by_Serial(self, serialNo, actVolume):
+        for device in self.devices:
+            if (serialNo == self.devices[device].serialNumber):
+                self.devices[device].volume = actVolume
+                return True
+            
+        return False
+            
 class Echo(object):
     def __init__(self, id):
         self.id = id
@@ -113,11 +125,12 @@ class Echo(object):
         self.deviceOwnerCustomerId = ""
         self.playerinfo = {}
         self.queueinfo = {}
+        self.volume = 0
 
 ##############################################################################
 
 class AlexaRc4shNG(SmartPlugin):
-    PLUGIN_VERSION = '1.0.3'
+    PLUGIN_VERSION = '1.1.0'
     ALLOW_MULTIINSTANCE = False
     """
     Main class of the Plugin. Does all plugin specific stuff and provides
@@ -140,23 +153,17 @@ class AlexaRc4shNG(SmartPlugin):
         self.login_state = False
         self.last_update_time = ''
         self.next_update_time = ''
-        self.ImportPyOTPError = False
+        self.routines = {}
+
         # get parameters
+        self.alexa_refresh_token = self.get_parameter_value('alexa_refresh_token')
         self.cookiefile = self.get_parameter_value('cookiefile')
         self.host = self.get_parameter_value('host')
         self.AlexaEnableItem = self.get_parameter_value('item_2_enable_alexa_rc')
-        self.credentials = self.get_parameter_value('alexa_credentials')
-        if (self.credentials != 'None'):
-            self.credentials = self.get_parameter_value('alexa_credentials').encode('utf-8')
-            self.credentials = base64.decodebytes(self.credentials).decode('utf-8')
         self.LoginUpdateCycle = self.get_parameter_value('login_update_cycle')
-        self.mfa_Secret = self.get_parameter_value('mfa_secret')
         self.update_file=self.sh.get_basedir()+"/plugins/alexarc4shng/lastlogin.txt"
         self.rotating_log = []
-        # Check if MFA is possible
-        if (ImportPyOTPError == True):
-            self.logger.warning("Plugin '{}': problem during import of pyotp, you will not be able to use MFA-Authentication".format(self.get_fullname()))
-            self.ImportPyOTPError = True
+
 
         if not self.init_webinterface():
             self._init_complete = False
@@ -170,36 +177,38 @@ class AlexaRc4shNG(SmartPlugin):
         self.logger.info("Plugin '{}': start method called".format(self.get_fullname()))
         # get additional parameters from files
         self.csrf = self.parse_cookie_file(self.cookiefile)
+        if (self.csrf == 'N/A'):
+            self.get_cookie_by_refresh_token()
         
-        # Check login-state - if logged off and credentials are availabel login in
+        # Check login-state - if logged off try to get new Cookie
         if os.path.isfile(self.cookiefile):
             self.login_state=self.check_login_state()
             self.check_refresh_login()
         
-        if (self.login_state == False and self.credentials != ''):
+        if (self.login_state == False):
             try:
                 os.remove(self.update_file)
             except:
                 pass
-            self.check_refresh_login()
-            self.login_state=self.check_login_state()
+            
         
         # Collect all devices    
         if (self.login_state):
             self.Echos = self.get_devices_by_request()
+            self.get_routines()
+            # enable scheduler if Login should be updated automatically
+            self.scheduler_add('check_login', self.check_refresh_login,cycle=300)
         else:
             self.Echos = None
-        # enable scheduler if Login should be updated automatically
         
-        if self.credentials != '':
-            self.scheduler_add('check_login', self.check_refresh_login,cycle=300)
-            #self.scheduler.add('plugins.alexarc4shng.check_login', self.check_refresh_login,cycle=300,from_smartplugin=True)
         
-        if self.ImportPyOTPError:
-            logline = str(self.shtime.now())[0:19] + ' no pyOTP installed you can not use MFA'
-        else:
-            logline = str(self.shtime.now())[0:19] + ' pyOTP installed you can use MFA' 
-        self._insert_protocoll_entry(logline)
+        
+        
+            
+        
+
+        
+        
         
         self.alive = True
         
@@ -345,14 +354,14 @@ class AlexaRc4shNG(SmartPlugin):
                     actValue = str(item())
                     
                 if ("volume" in myCommand.Action.lower()):
-                    httpStatus, myPlayerInfo = self.receive_info_by_request(myCommand.EndPoint,"LoadPlayerInfo","")
+                    #httpStatus, myPlayerInfo = self.receive_info_by_request(myCommand.EndPoint,"LoadPlayerInfo","")
+                    #httpStatus, myPlayerInfo = self.send_cmd('', 'GetVolumeInformation', '')
+                    httpStatus, myPlayerInfo = self.receive_info_by_request('',"GetVolumeInformation",'')
                     # Store Player-Infos to Device
                     if httpStatus == 200:
                         try:
                             myActEcho = self.Echos.get(myCommand.EndPoint)
-                            myActEcho.playerinfo = myPlayerInfo['playerInfo']
-                            actVolume = self.search(myPlayerInfo, "volume")
-                            actVolume = self.search(actVolume, "volume")
+                            actVolume = myActEcho.volume
                         except:
                             actVolume = 50
                     else:
@@ -360,7 +369,7 @@ class AlexaRc4shNG(SmartPlugin):
                             actVolume = int(item())
                         except:
                             actVolume = 50
-                        
+                '''        
                 if ("volumeadj" in myCommand.Action.lower()):
                     myDelta = int(myCommand.Value)
                     if actVolume+myDelta < 0:
@@ -373,16 +382,109 @@ class AlexaRc4shNG(SmartPlugin):
                 # neuen Wert speichern in item
                 if ("volume" in myCommand.Action.lower()):
                     item._value = newValue2Set
-                    
+                '''    
 
-                if (actValue == str(myCommand.ItemValue) and myCommand):
+                if ((actValue == str(myCommand.ItemValue)  or "volume" in myCommand.Action.lower()) and myCommand):
                     myCommand.ItemValue = myItemBuffer
                     self.send_cmd(myCommand.EndPoint,myCommand.Action,newValue2Set)
 
     
     
     # find Value for Key in Json-structure
-    
+    def get_cookie_by_refresh_token(self):
+        if (self.alexa_refresh_token == ''):
+            return
+        myCSRF = ''
+        logline =  'try to get Cookie by Refresh-Token'
+        self._insert_protocoll_entry(logline)
+        myHeader = {'x-amzn-identity-auth-domain' : 'api.amazon.de',
+            'User-Agent' : 'AppleWebKit PitanguiBridge/2.2.485407.0-[HARDWARE=iPhone10_4][SOFTWARE=15.5][DEVICE=iPhone]'}
+        #POST /ap/exchangetoken/cookies HTTP/1.1
+        try:
+            myBody= {
+            'requested_token_type':'auth_cookies',
+            'app_name':'Amazon Alexa',
+            'domain':'www.amazon.de',
+            'source_token_type':'refresh_token',
+            'source_token': self.alexa_refresh_token
+            }
+            mySession = requests.session()
+            mySession.headers = {}
+            response = mySession.post('https://api.amazon.de/ap/exchangetoken/cookies',headers=myHeader,params=myBody)
+            myContent = response.content.decode()
+            myJson=json.loads(response.content.decode())
+            myCookies=myJson['response']['tokens']['cookies']['.amazon.de']
+            domain_dict = myJson['response']['tokens']['cookies']
+            myDomain = next(iter(domain_dict))
+            logline =  'got Cookie with Refresh-Token'
+            self._insert_protocoll_entry(logline)
+        except Exception as err:
+            logline = 'Error while retrieving Cookie : %s' %err
+            self.logger.error(logline)
+            self._insert_protocoll_entry(logline)
+            return
+        myCookieFile = ''
+        for cookie in myCookies:
+            if ('HttpOnly'in cookie and cookie['HttpOnly'] == True):
+                myCookieFile += '#HttpOnly_'
+        
+        
+            myCookieFile += myDomain + '\t' + 'True'+ '\t' + cookie['Path'] + '\t'
+            if cookie['Secure'] == True:
+                myCookieFile += 'TRUE' +'\t'
+            else:
+                myCookieFile += 'FALSE' + '\t'
+            myCookieFile += cookie['Expires'] + '\t' + cookie['Name'] + '\t' + cookie['Value']+ '\n'
+
+        myCookie = {}
+        csrf = 'N/A'
+
+        #myCookieFile = myCookieFile.split("\n")
+        for line in myCookieFile.split("\n"):
+            if line.find('amazon.de') < 0:
+                continue
+        
+            lineFields = line.strip().split('\t')
+            if len(lineFields) >= 7:
+                # add Line to self.cookie
+                if lineFields[2] == '/':
+                    myCookie[lineFields[5]] = lineFields[6].replace('"','')
+
+        http_headers = {
+        'Accept-Language':'de-DE',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Referer': 'https://alexa.amazon.de/spa/index.html',
+        'Origin' : 'https://alexa.amazon.de'
+        }
+        
+        URLs = [
+                'https://alexa.amazon.de/api/language',
+                'https://alexa.amazon.de/api/devices-v2/device?cached=false',
+                'https://alexa.amazon.de/templates/oobe/d-device-pick.handlebars'
+        ]
+        
+        for url in URLs:
+            myResponse = requests.get(url=url,headers=http_headers,cookies=myCookie)
+            logline =  url + ' -> ' + str(myResponse.status_code)
+            self.logger.info(logline)
+            self._insert_protocoll_entry(logline)
+        
+            if ('csrf' in myResponse.cookies):
+                myCSRF = myResponse.cookies.get('csrf')
+                # add the CSRF to our Session-Cookies
+                myCookie['csrf'] = myCSRF
+                self.csrf = myCSRF
+                for c in myResponse.cookies:
+                    myCookieFile += c.domain+"\t"+str(c.domain_specified)+"\t"+ c.path+"\t"+ str(c.secure)+"\t"+ str(c.expires)+"\t"+ c.name+"\t"+ c.value+"\n"
+                self.store_cookie_file(myCookieFile)
+                self.cookie = myCookie
+                break
+        if (myCSRF == ''): 
+            logline =  'got no CSRF :-('
+            self.logger.info(logline)
+            self._insert_protocoll_entry(logline)
+
     def search(self,p, strsearch):
         if type(p) is dict:  
             if strsearch in p:
@@ -414,8 +516,7 @@ class AlexaRc4shNG(SmartPlugin):
         
         mytime = time.time()
         if (last_update_time + self.LoginUpdateCycle < mytime):
-            self.log_off()
-            self.auto_login_by_request()
+            self.get_cookie_by_refresh_token()
 
             # set actual values for web-interface
             self.last_update_time = datetime.fromtimestamp(mytime).strftime('%Y-%m-%d %H:%M:%S')
@@ -528,19 +629,29 @@ class AlexaRc4shNG(SmartPlugin):
         return myReturnList
     
     def receive_info_by_request(self,dvName,cmdName,mValue):
+        actEcho = None
         actEcho = self.Echos.get(dvName)
-        myUrl='https://'+self.host
+        path=None
+        myDescription,myUrl,myDict,myReqType = self.load_command_let(cmdName,path)
+        myUrl='https://'+self.host+ myUrl
         myDescriptions = ''
         myDict = {}
         # replace the placeholders in URL
-        myUrl=self.parse_url(myUrl,
-                            mValue,
-                            actEcho.serialNumber,
-                            actEcho.family,
-                            actEcho.deviceType,
-                            actEcho.deviceOwnerCustomerId)
-        
-        myDescription,myUrl,myDict = self.load_command_let(cmdName,None)
+        if (actEcho != None):
+            myUrl=self.parse_url(myUrl,
+                                mValue,
+                                actEcho.serialNumber,
+                                actEcho.family,
+                                actEcho.deviceType,
+                                actEcho.deviceOwnerCustomerId)
+        else:
+            myUrl=self.parse_url(myUrl,
+                                mValue,
+                                '',
+                                '',
+                                '',
+                                '')
+        myDescription,myUrl,myDict,myReqType = self.load_command_let(cmdName,None)
         
         myHeader = { "Host": "alexa.amazon.de",
                    "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
@@ -553,6 +664,8 @@ class AlexaRc4shNG(SmartPlugin):
                   }     
         mySession = requests.Session()
         mySession.cookies.update(self.cookie)
+        if (not  'https' in myUrl):
+            myUrl  = 'https://'+self.host+myUrl
         response= mySession.get(myUrl,headers=myHeader,allow_redirects=True)
 
         myResult = response.status_code
@@ -561,12 +674,37 @@ class AlexaRc4shNG(SmartPlugin):
         myDict=json.loads(myContent)
         mySession.close() 
 
-        
+        if ('allDeviceVolumes') in myUrl and myResult == 200:
+            myJson = json.loads(myContent)
+            for device in myJson['volumes']:
+                self.Echos.set_Volume_by_Serial(device['dsn'], device['speakerVolume'])
+                
         return myResult,myDict
         
 
     
     def get_last_alexa(self):
+        myHeader = {"User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                    "Accept-Encoding" : 'gzip, deflate'
+                  }     
+        # Date-Time Berechnung : (Date.now() + 24 * 60 * 60 * 1000)
+        myTime = time.time()*1000.0
+        start_time = str(int(myTime)-24 * 60 * 60 * 1000)
+        end_time = str(int(myTime)+24 * 60 * 60 * 1000)
+        url = 'https://www.amazon.de/alexa-privacy/apd/rvh/customer-history-records?startTime={}&endTime={}&recordType="VOICE_HISTORY"&maxRecordSize='.format(start_time,end_time)
+        #http_headers['User-Agent'] = 'AppleWebKit PitanguiBridge/2.2.556530.0-[HARDWARE=iPhone14_7][SOFTWARE=16.6][DEVICE=iPhone]'
+        
+        myResponse = requests.get(url=url,headers=myHeader,cookies=self.cookie)
+        myJson = json.loads(myResponse.content.decode())
+        myLastDevice = ''
+        for history in myJson['customerHistoryRecords']:
+            if (history['domain']) == 'HomeAutomation':
+                myLastDevice = (history['device']['deviceName'])
+        
+    
+        return myLastDevice
+
+    def get_routines(self):
         myHeader = { "Host": "alexa.amazon.de",
                    "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
                    "Connection": "keep-alive",
@@ -576,20 +714,54 @@ class AlexaRc4shNG(SmartPlugin):
                    "Origin":"https://alexa.amazon.de",
                    "DNT": "1"
                   }     
+        
         mySession = requests.Session()
         mySession.cookies.update(self.cookie)
-        response= mySession.get('https://'+self.host+'/api/activities?startTime=&size=10&offset=0',
+        response= mySession.get('https://'+self.host+'/api/behaviors/v2/automations?limit=200',headers=myHeader,allow_redirects=True)
+        mySession.close()
+        myContent= response.content.decode()
+        myContent = myContent.replace('ALEXA_CURRENT_DEVICE_TYPE','<deviceType>').replace('ALEXA_CURRENT_DSN','<serialNumber>')
+        myDict = json.loads(myContent)
+        myRoutines = {}
+        for r in myDict:
+            myRoutines[r['name']] = r
+        self.routines = myRoutines
+        
+    def get_player_info(self,deviceName):
+        myHeader = { "Host": "alexa.amazon.de",
+                   "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
+                   "Connection": "keep-alive",
+                   "Content-Type": "application/json; charset=UTF-8",
+                   "Accept-Language": "en-US,en;q=0.5",
+                   "Referer": "https://alexa.amazon.de/spa/index.html",
+                   "Origin":"https://alexa.amazon.de",
+                   "DNT": "1"
+                  }     
+        myEcho = self.Echos.get(deviceName)
+        if(myEcho == None):
+            return None,{}
+        mySession = requests.Session()
+        mySession.cookies.update(self.cookie)
+        response= mySession.get('https://'+self.host+'/api/np/player?deviceSerialNumber={}&deviceType={}'.format(myEcho.serialNumber,myEcho.deviceType),
                                 headers=myHeader,allow_redirects=True)
 
         myContent= response.content.decode()
         myHeader = response.headers
         myDict=json.loads(myContent)
-        mySession.close() 
-        myDevice = myDict["activities"][0]["sourceDeviceIds"][0]["serialNumber"]
-        myLastDevice = self.Echos.get_Device_by_Serial(myDevice)
-        return myLastDevice
+        mySession.close()
+        return response.status_code,myDict 
+
     
     def send_cmd(self,dvName, cmdName,mValue,path=None):
+        
+        # Get actual Volume-Setting
+        # httpStatus, myVolumeInfo = self.receive_info_by_request('',"GetVolumeInformation",'')
+        
+        myDescriptions = ''
+        myDict = {}
+
+        myDescription,myUrl,myDict,myReqType = self.load_command_let(cmdName,path)
+        
         # Parse the value field for dynamic content
         if (str(mValue).find("#") >= 0 and str(mValue).find("/#") >0):
             FirstPos = str(mValue).find("#")
@@ -607,58 +779,91 @@ class AlexaRc4shNG(SmartPlugin):
             mValue = mValue[0:FirstPos]+myValue+mValue[LastPos:LastPos-2]+mValue[LastPos+2:len(mValue)]
 
         mValue = self.replace_mutated_vowel(mValue)
-                
-        
-        buffer = BytesIO()
+
         actEcho = None
-        try:
-            actEcho = self.Echos.get(dvName)
-        except:
+        if (dvName != ''):
+            try:
+                actEcho = self.Echos.get(dvName)
+            except:
+                self.logger.warning('found no Echo with Name : {}'.format(dvName))
+                self._insert_protocoll_entry('found no Echo with Name : {}'.format(dvName))
+                return
+        if actEcho == None and myReqType != 'GET':
             self.logger.warning('found no Echo with Name : {}'.format(dvName))
             self._insert_protocoll_entry('found no Echo with Name : {}'.format(dvName))
             return
-        if actEcho == None:
-            self.logger.warning('found no Echo with Name : {}'.format(dvName))
-            self._insert_protocoll_entry('found no Echo with Name : {}'.format(dvName))
-            return
+        if actEcho == None and myReqType == 'GET':
+            self.logger.info('Get request without Device-Name')
+            self._insert_protocoll_entry('Get request without Device-Name')
+            dvName = 'No Device selected'
+            
+        if ('volumeadj' in cmdName.lower() and actEcho != None):
+            if (actEcho.volume + int(mValue) <= 100):
+                actEcho.volume = actEcho.volume + int(mValue)
+                mValue = str(actEcho.volume)
+            elif (actEcho.volume + int(mValue) > 100):
+                actEcho.volume = 100
+                mValue = str(actEcho.volume)
+            elif (actEcho.volume + int(mValue) >= 0):
+                actEcho.volume = actEcho.volume + int(mValue)
+                mValue = str(actEcho.volume)
+            elif (actEcho.volume + int(mValue) < 0):
+                actEcho.volume = 0
+                mValue = str(actEcho.volume)
+            
+        # here it was :-)
         
-        myUrl='https://'+self.host
-        
-        myDescriptions = ''
-        myDict = {}
-        
-        
-        myDescription,myUrl,myDict = self.load_command_let(cmdName,path)
         # complete the URL
         myUrl='https://'+self.host+myUrl
 
         # replace the placeholders in URL
-        myUrl=self.parse_url(myUrl,
-                            mValue,
-                            actEcho.serialNumber,
-                            actEcho.family,
-                            actEcho.deviceType,
-                            actEcho.deviceOwnerCustomerId)
+        if actEcho != None:
+            myUrl=self.parse_url(myUrl,
+                                mValue,
+                                actEcho.serialNumber,
+                                actEcho.family,
+                                actEcho.deviceType,
+                                actEcho.deviceOwnerCustomerId)
         
         # replace the placeholders in Payload
         myHeaders=self.create_request_header()
 
-        
-        postfields = self.parse_json(myDict,
-                                     mValue,
-                                     actEcho.serialNumber,
-                                     actEcho.family,
-                                     actEcho.deviceType,
-                                     actEcho.deviceOwnerCustomerId)
-        
+        if actEcho != None:        
+            postfields = self.parse_json(myDict,
+                                         mValue,
+                                         actEcho.serialNumber,
+                                         actEcho.family,
+                                         actEcho.deviceType,
+                                         actEcho.deviceOwnerCustomerId)
+        else:
+            postfields = self.parse_json(myDict,
+                                         mValue,
+                                         '',
+                                         '',
+                                         '',
+                                         '')
         try:        
             logline = str(self.shtime.now())[0:19] + ' sending command to "{}" payload {}'.format(dvName, json.dumps(postfields)) 
             self._insert_protocoll_entry(logline)
         except Exception as err:
             pass
+        if (myReqType.upper() =='POST'):
+            myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(myUrl,myHeaders,self.cookie,postfields)
         
-        myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(myUrl,myHeaders,self.cookie,postfields)
+        if (myReqType.upper() =='PUT'):
+            myHeaders['Content-Type']="application/json; charset=UTF-8"
+            myStatus,myRespHeader, myRespCookie, myContent = self.send_put_request(myUrl,myHeaders,self.cookie,postfields)            
 
+        if (myReqType.upper() =='GET'):
+            myStatus,myRespHeader, myRespCookie, myContent,newUrl = self.send_get_request(myUrl,myHeaders,self.cookie,postfields)            
+        
+        if ('allDeviceVolumes') in myUrl and myStatus == 200:
+            myJson = json.loads(myContent)
+            for device in myJson['volumes']:
+                self.Echos.set_Volume_by_Serial(device['dsn'], device['speakerVolume'])
+
+            
+            
         
         myResult = myStatus
 
@@ -671,7 +876,7 @@ class AlexaRc4shNG(SmartPlugin):
         else:
             self.logger.warning("itemStatus of send_cmd: {}: {}".format(myResult, myContent))
         
-        return myResult 
+        return myResult, myContent 
         
     def get_devices_by_request(self):
         try:
@@ -719,8 +924,42 @@ class AlexaRc4shNG(SmartPlugin):
                 
         return myDevices
     
+    ####################################################
+    # store the new Cookie-File
+    ####################################################    
+    def store_cookie_file(self,myCookieDict):
+        myResults = []
+        try:
+            with open (self.cookiefile, 'w') as myFile:
+                
+                
+                myFile.write("# AlexaRc4shNG HTTP Cookie File"+"\r\n")
+                myFile.write("# https://www.smarthomeng.de/user/"+"\r\n")
+                myFile.write("# This file was generated by alexarc4shng@smarthomeNG! Edit at your own risk."+"\r\n")
+                myFile.write("# ---------------------------------------------------------------------------\r\n")
+                for line in myCookieDict.splitlines():
+                    myFile.write(line+"\r\n")
+            myFile.close()            
+            
+            self.cookie = myCookieDict
+            self.login_state= self.check_login_state()
+            mytime = time.time()
+            file=open(self.update_file,"w")
+            file.write(str(mytime)+"\r\n")
+            
+            file.close()
+            
+            myResults.append('login state : %s' % self.login_state)
+        except:
+            myResults.append('cookieFile- error while writing new cookie-File')
+                        
+        for entry in myResults:
+                logline = str(self.shtime.now())[0:19] + ' ' + entry 
+                self._insert_protocoll_entry(logline)
     
-    
+    ####################################################
+    # read the new Cookie-File
+    ####################################################    
     def read_cookie_file(self,cookiefile):
         CookieFile = ""
         try:
@@ -819,13 +1058,20 @@ class AlexaRc4shNG(SmartPlugin):
         try:
             myDummy=myDummy.replace('<mValue>',mValue)
         except Exception as err:
-            print("no String")
+            pass
         # for Numbers
         try:    
             myDummy=myDummy.replace('"<nValue>"',str(mValue))
         except Exception as err:
-            print("no Integer")
-        
+            pass
+        # for TuneIn-ID´s
+        try:    
+            if ("<TuneInId>" in myDummy):
+                message ='["music/tuneIn/stationId","' + mValue + '"]|{"previousPageId":"TuneIn_SEARCH"}'
+                Station_encoded = base64.b64encode(bytes(base64.b64encode(bytes(message, 'utf-8')).decode('utf-8'),'utf-8')).decode('utf-8')
+                myDummy=myDummy.replace('<TuneInId>',str(Station_encoded))
+        except Exception as err:
+            pass
         # Inject the Device informations
         myDummy=myDummy.replace('<serialNumber>',serialNumber)
         myDummy=myDummy.replace('<familiy>',familiy)
@@ -854,6 +1100,7 @@ class AlexaRc4shNG(SmartPlugin):
         myDescription   = ''
         myUrl           = ''
         myJson          = ''
+        myReqType       = ''
         retJson         = {}
         
         if path==None:
@@ -871,6 +1118,10 @@ class AlexaRc4shNG(SmartPlugin):
                 if (myFields[0]=="description"):
                     myDescription=myFields[1]
                     pass
+                if (myFields[0]=='myReqType'):
+                    myReqType=myFields[1]
+                    pass
+                
                 if (myFields[0]=="json"):
                     myJson=myFields[1]
                     retJson=json.loads(myJson)
@@ -878,7 +1129,7 @@ class AlexaRc4shNG(SmartPlugin):
             file.close()
         except:
             self.logger.error("Error while loading Commandlet : {}".format(cmdName))
-        return myDescription,myUrl,retJson
+        return myDescription,myUrl,retJson,myReqType
     
 
     
@@ -928,8 +1179,9 @@ class AlexaRc4shNG(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
     
-    def test_cmd_let(self,selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl):
-        result = ""
+    def test_cmd_let(self,selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl,myReqType):
+        result     = ""
+        retContent = ""
         if (txtApiUrl[0:1] != "/"):
             txtApiUrl = "/"+txtApiUrl
             
@@ -939,8 +1191,8 @@ class AlexaRc4shNG(SmartPlugin):
             result += "value1:"+JsonResult+"\n"
         else:
             try:
-                self.save_cmd_let("test", txtDescription, txt_payload, txtApiUrl, "/tmp/")
-                retVal = self.send_cmd(selectedDevice,"test",txtValue,"/tmp/")
+                self.save_cmd_let("test", txtDescription, txt_payload, txtApiUrl, "/tmp/",myReqType)
+                retVal,retContent = self.send_cmd(selectedDevice,"test",txtValue,"/tmp/")
                 result =  "Status:OK\n"
                 result += "value1: HTTP "+str(retVal)+"\n"
             except Exception as err:
@@ -957,17 +1209,21 @@ class AlexaRc4shNG(SmartPlugin):
             myFields=line.split(":")
             newEntry[myFields[0]] = myFields[1]
 
-        myResponse.append(newEntry)        
+        myResponse.append(newEntry)
+        if (retContent != ''):
+            myResponse.append(retContent) 
         ##################
         return json.dumps(myResponse,sort_keys=True)
 
     def load_cmd_2_webIf(self,txtCmdName):
         try:
-            myDescription,myUrl,myDict = self.load_command_let(txtCmdName,None)
+            myDescription,myUrl,myDict,myReqType = self.load_command_let(txtCmdName,None)
             result =  "Status|OK\n"
             result += "Description|"+myDescription+"\n"
             result += "myUrl|"+myUrl+"\n"
             result += "payload|"+json.dumps(myDict)+"\n"
+            result += "myReqType|"+myReqType+"\n"
+            
         except Exception as err:
             result =  "Status|failure\n"
             result += "value1|"+err.args[0]+"\n"
@@ -986,7 +1242,7 @@ class AlexaRc4shNG(SmartPlugin):
         return json.dumps(myResponse,sort_keys=True)
         
         
-    def save_cmd_let(self,name,description,payload,ApiURL,path=None):
+    def save_cmd_let(self,name,description,payload,ApiURL,path=None,myReqType=''):
         if path==None:
             path=self.sh.get_basedir()+"/plugins/alexarc4shng/cmd/"
         
@@ -1010,6 +1266,7 @@ class AlexaRc4shNG(SmartPlugin):
                 file.write("apiurl|"+ApiURL+"\r\n")
                 file.write("description|"+description+"\r\n")
                 file.write("json|"+myDump+"\r\n")
+                file.write("myReqType|"+myReqType)
                 file.close
     
                 result =  "Status:OK\n"
@@ -1032,7 +1289,7 @@ class AlexaRc4shNG(SmartPlugin):
         ##################
         return json.dumps(myResponse,sort_keys=True)
     
-    def send_get_request(self,url="", myHeader="",Cookie=""):
+    def send_get_request(self,url="", myHeader="",Cookie="",postfields=""):
         mySession = requests.Session()
         mySession.cookies.update(Cookie)
         response=mySession.get(url,
@@ -1049,6 +1306,16 @@ class AlexaRc4shNG(SmartPlugin):
                         allow_redirects=True)
         mySession.close()
         return response.status_code, response.headers, mySession.cookies, response.content.decode()
+
+    def send_put_request(self,url="", myHeader="",Cookie="",postdata=""):
+        mySession = requests.Session()
+        mySession.cookies.update(Cookie)
+        response=mySession.put(url,
+                        headers=myHeader,
+                        data=postdata,
+                        allow_redirects=True)
+        mySession.close()
+        return response.status_code, response.headers, mySession.cookies, response.content.decode()    
     
     def parse_response_cookie_2_txt(self, cookie, CollectingTxtCookie):
         for c in cookie:
@@ -1076,201 +1343,8 @@ class AlexaRc4shNG(SmartPlugin):
         return postdata
     
     
-    def auto_login_by_request(self):
-        if self.credentials == '':
-            return False
-        if self.credentials   != '':
-            dummy = self.credentials.split(":")
-            user = dummy[0]
-            pwd = dummy[1]
-        myResults= []
-        myCollectionTxtCookie =  ""
-        myCollectionCookie = {}
-        ####################################################
-        # Start Step 1 - get Page without Post-Fields
-        ####################################################
-        myHeaders={
-                    "Accept-Language":"de,en-US;q=0.7,en;q=0.3",
-                    "DNT" : "1",
-                    "Upgrade-Insecure-Requests" : "1",
-                    "Connection":"keep-alive",
-                    "Content-Type" : "text/plain;charset=UTF-8",
-                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
-                    "Connection" : "keep-alive",
-                    "Accept-Encoding" : "gzip, deflate, br"
-                  }
-        myStatus,myRespHeader, myRespCookie, myContent,myLocation = self.send_get_request('https://'+self.host,myHeaders)
-        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
-        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
-        PostData = self.collect_postdata(myContent)
-        
-        actSessionID = myRespCookie['session-id']
-        
-        self.logger.info('Status of Auto-Login First Step: %d' % myStatus)
-        myResults.append('HTTP : ' + str(myStatus)+'- Step 1 - get Session-ID')
-        ####################################################
-        # Start Step 2 - login with form
-        ####################################################
-        myHeaders={
-                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
-                    "Accept-Language":"de,en-US;q=0.7,en;q=0.3",
-                    "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "DNT"  : "1",
-                    "Upgrade-Insecure-Requests":"1",
-                    "Connection":"keep-alive",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Accept-Encoding" : "gzip, deflate, br",
-                    "Referer": myLocation
-                   }
-        newUrl = "https://www.amazon.de"+"/ap/signin/"+actSessionID
-        postfields = urllib3.request.urlencode(PostData)
-        
-        myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(newUrl,myHeaders,myCollectionCookie,PostData)
-        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
-        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
-        PostData = self.collect_postdata(myContent)
-        
-        #actSessionID = myRespCookie['session-id']
-        
-        self.logger.info('Status of Auto-Login Second Step: %d' % myStatus)
-        myResults.append('HTTP : ' + str(myStatus)+'- Step 2 - login blank to get referer')
-        
-        ####################################################
-        # Start Step 3 - login with form
-        ####################################################
-        myHeaders   ={
-                        "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
-                        "Accept-Language" :"de,en-US;q=0.7,en;q=0.3",
-                        "Accept" : "*/*",
-                        "DNT" : "1",
-                        "Accept-Encoding" : "gzip, deflate, br",
-                        "Connection":"keep-alive",
-                        "Upgrade-Insecure-Requests":"1",
-                        "Content-Type": "application/x-www-form-urlencoded",
-                        "Host":"www.amazon.de",
-                        "Referer":"https://www.amazon.de/ap/signin/" + actSessionID
-                     }
-
-        newUrl = "https://www.amazon.de/ap/signin"
-
-        PostData['email'] =user
-        PostData['password'] = pwd
-        
-        # If MFA Secret is Set - try with MFA
-        if (self.mfa_Secret and self.ImportPyOTPError == False):
-            self.logger.info("Plugin '{}': Try to login via MFA".format(self.get_fullname()))
-            self.mfa_Secret = self.mfa_Secret.replace(" ","")
-            totp = pyotp.TOTP(self.mfa_Secret)
-            mfaCode = totp.now() 
-            PostData['password'] += mfaCode
-            myResults.append('MFA  : ' + 'use MFA/OTP - Login OTP : {}'.format(mfaCode))
-            
-        
-        postfields = urllib3.request.urlencode(PostData)
-        myStatus,myRespHeader, myRespCookie, myContent = self.send_post_request(newUrl,myHeaders,myCollectionCookie,PostData)
-        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
-        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
-        PostData = self.collect_postdata(myContent)
-        
-        self.logger.info('Status of Auto-Login third Step: %d' % myStatus)
-        
-        myResults.append('HTTP : ' + str(myStatus)+'- Step 3 - login with credentials')
-        file=open("/tmp/alexa_step2.html","w")
-        file.write(myContent)
-        file.close
-        
-        #################################################################
-        ## done - third Step - logged in now go an get the goal (csrf)
-        #################################################################
-        
-        myHeaders ={
-                    "User-Agent" : "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0",
-                    "Accept-Language" : "de,en-US;q=0.7,en;q=0.3",
-                    "DNT" : "1",
-                    "Connection" : "keep-alive",
-                    "Accept-Encoding" : "gzip, deflate",
-                    "Referer" : "https://"+self.host+ "/spa/index.html",
-                    "Origin":"https://"+self.host
-                   }
-        Url = 'https://'+self.host+'/templates/oobe/d-device-pick.handlebars'
-        #Url = 'https://'+self.host+'/api/language'
-        
-        myStatus,myRespHeader, myRespCookie, myContent,myLocation = self.send_get_request(Url,myHeaders,myCollectionCookie)
-        myCollectionTxtCookie = self.parse_response_cookie_2_txt(myRespCookie,myCollectionTxtCookie)
-        myCollectionCookie = self.parse_response_cookie(myRespCookie,myCollectionCookie)
-
-        myResults.append('HTTP : ' + str(myStatus)+'- Step 4 - get csrf')
-        self.logger.info('Status of Auto-Login fourth Step: %d' % myStatus)
-        
-        ####################################################
-        # check the csrf
-        ####################################################
-        myCsrf = self.search(myCollectionCookie, "csrf")
-        if myCsrf != None:
-            myResults.append('check CSRF- Step 5 - got good csrf')
-            self.logger.info('Status of Auto-Login fifth Step - got CSRF: %s' % myCsrf)
-            self.csrf = myCsrf
-        else:
-            myResults.append('check CSRF- Step 5 - got no CSRF')
-            self.logger.info('Status of Auto-Login fifth Step - got no CSRF')
-
-        ####################################################
-        # store the new Cookie-File
-        ####################################################
-        try:
-            with open (self.cookiefile, 'w') as myFile:
-                
-                
-                myFile.write("# AlexaRc4shNG HTTP Cookie File"+"\r\n")
-                myFile.write("# https://www.smarthomeng.de/user/"+"\r\n")
-                myFile.write("# This file was generated by alexarc4shng@smarthomeNG! Edit at your own risk."+"\r\n")
-                myFile.write("# ---------------------------------------------------------------------------\r\n")
-                for line in myCollectionTxtCookie.splitlines():
-                    myFile.write(line+"\r\n")
-            myFile.close()            
-            
-            myResults.append('cookieFile- Step 6 - creation done')
-            self.cookie = myCollectionCookie
-            self.login_state= self.check_login_state()
-            mytime = time.time()
-            file=open(self.update_file,"w")
-            file.write(str(mytime)+"\r\n")
-            file.close()
-            
-            myResults.append('login state : %s' % self.login_state)
-        except:
-            myResults.append('cookieFile- Step 6 - error while writing new cookie-File')
-                        
-        for entry in myResults:
-                logline = str(self.shtime.now())[0:19] + ' ' + entry 
-                self._insert_protocoll_entry(logline)
-        if (self.mfa_Secret != "" and self.ImportPyOTPError == False):
-            myResults.append('use OTP-Code : '+mfaCode)
-        
-        return myResults
-    
-            
-        
     
     
-    def log_off(self):
-        myUrl='https://'+self.host+"/logout"
-        myHeaders={"DNT"       :"1",
-                   "Connection":"keep-alive",
-                   "User-Agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0"
-                  }
-        
-        myStatus,myRespHeader, myRespCookie, myContent,myLocation = self.send_get_request(myUrl,myHeaders, self.cookie)
-        
-        self.logger.info('Status of log_off: {}'.format(myStatus))
-        
-        if myStatus == 200:
-            logline = str(self.shtime.now())[0:19] +' successfully logged off'
-            self._insert_protocoll_entry(logline)
-            return "HTTP - " + str(myStatus)+" successfully logged off"
-        else:
-            logline = str(self.shtime.now())[0:19] +' Error while logging off'
-            return "HTTP - " + str(myStatus)+" Error while logging off"
         
 
     
@@ -1406,90 +1480,23 @@ class WebInterface(SmartPluginWebIf):
                                     alexa_device_count=alexa_device_count,
                                     time_auto_login=login_info,
                                     log_file=log_file,
-                                    cookie_txt=cookie_txt,
-                                    pyOTP = self.plugin.ImportPyOTPError)
+                                    cookie_txt=cookie_txt)
   
-    @cherrypy.expose
-    def handle_mfa_html(self, data = None ):
-        txt_Result = {}
-        myCommand = json.loads(data)
-        myOrder = myCommand["Key"]
-        if myOrder == "Step1":
-            myUser = myCommand["data"]["User"]
-            myPwd = myCommand["data"]["Pwd"]
-            myResult = self.store_credentials_html('', myPwd, myUser, False, '', False)
-            
-            txt_Result["Status"] = "OK"
-            txt_Result["Step"] = myOrder
-            txt_Result["data"] = { "Result" : myResult }
-            
-        
-        elif myOrder =="Step3":
-            myMFA = myCommand["data"]["MFA"]
-            myMFA = myMFA.replace(" ","")
-            if (len(myMFA) != 52):
-                txt_Result["Status"] = "ERROR"
-                txt_Result["Step"] = myOrder
-                txt_Result["data"] = { "Message" : "MFA - code has not correct length (should be 52)<br>Try again" }
-            else:
-                try:
-                    totp = pyotp.TOTP(myMFA)
-                    mfaCode = totp.now() 
-                    txt_Result["Status"] = "OK"
-                    txt_Result["Step"] = myOrder
-                    txt_Result["data"] = { "OTPCode" : mfaCode }
-                except err as Exception:
-                    txt_Result["Status"] = "ERROR"
-                    txt_Result["Step"] = myOrder
-                    txt_Result["data"] = { "Message" : "OTP could not calculated something seems to be wrong with the MFA<br>Try again" }
-        
-        elif myOrder =="Step5":
-            myMFA = myCommand["data"]["MFA"]
-            myMFA = myMFA.replace(" ","")
-            myUser = myCommand["data"]["User"]
-            myPwd = myCommand["data"]["Pwd"]
-            myResult = self.store_credentials_html('', myPwd, myUser, True, myMFA, False)
-            if ('stored new config to filesystem' in myResult):
-                txt_Result["Status"] = "OK"
-                txt_Result["Step"] = myOrder
-                txt_Result["data"] = { "Result" : myResult }
-            else:
-                txt_Result["Status"] = "ERROR"
-                txt_Result["Step"] = myOrder
-                txt_Result["data"] = { "Message" : 'could not store Credentials + MFA to /etc/plugin.yaml' }
-        
-        elif myOrder =="Step6":
-            if (myCommand["data"]["command"] == 'login'):
-                myResult=self.plugin.auto_login_by_request()
-                txt_Result["Status"] = "OK"
-                txt_Result["Step"] = myOrder
-                txt_Result["data"] = { "Result" :{ "LoginState" : self.plugin.login_state} }
-        
-            
-        return json.dumps(txt_Result)
+
     
-    @cherrypy.expose
-    def log_off_html(self,txt_Result=None):
-        txt_Result=self.plugin.log_off()
-        return json.dumps(txt_Result)
     
-    @cherrypy.expose
-    def log_in_html(self,txt_Result=None):
-        txt_Result=self.plugin.auto_login_by_request()
-        return json.dumps(txt_Result)
-        
                            
     @cherrypy.expose
-    def handle_buttons_html(self,txtValue=None, selectedDevice=None,txtButton=None,txt_payload=None,txtCmdName=None,txtApiUrl=None,txtDescription=None):
+    def handle_buttons_html(self,txtValue=None, selectedDevice=None,txtButton=None,txt_payload=None,txtCmdName=None,txtApiUrl=None,txtDescription=None,txtmyReqType=""):
         if txtButton=="BtnSave":
-            result = self.plugin.save_cmd_let(txtCmdName,txtDescription,txt_payload,txtApiUrl)
+            result = self.plugin.save_cmd_let(txtCmdName,txtDescription,txt_payload,txtApiUrl,None,txtmyReqType)
         elif txtButton =="BtnCheck":
             pass
         elif txtButton =="BtnLoad":
             result = self.plugin.load_cmd_2_webIf(txtCmdName)
             pass
         elif txtButton =="BtnTest":
-            result = self.plugin.test_cmd_let(selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl)
+            result = self.plugin.test_cmd_let(selectedDevice,txtValue,txtDescription,txt_payload,txtApiUrl,txtmyReqType)
         elif txtButton =="BtnDelete":
             result = self.plugin.delete_cmd_let(txtCmdName)
         else:
@@ -1504,6 +1511,22 @@ class WebInterface(SmartPluginWebIf):
         myCommands = self.plugin.load_cmd_list()
         return myCommands
     
+    
+    @cherrypy.expose
+    def build_routine_list_html(self,reload=None):
+        routineNames=self.plugin.routines.keys()
+        myRoutines = []
+        for i in routineNames:
+            myRoutines.append(i)
+        return json.dumps(myRoutines)
+    
+    @cherrypy.expose
+    def load_routine_html(self,reload=None,name=""):
+        myResult = {}
+        myResult['Result'] = True
+        myResult['data'] = json.dumps(self.plugin.routines[name])
+        return json.dumps(myResult)
+        
     
     def get_device_list(self):
         if (self.plugin.login_state == True):
@@ -1528,46 +1551,24 @@ class WebInterface(SmartPluginWebIf):
         return Device_items
 
     @cherrypy.expose
-    def store_credentials_html(self, encoded='', pwd = '', user= '', store_2_config=None, mfa='',login=False):
-        txt_Result = []
-        myCredentials = user+':'+pwd
-        byte_credentials = base64.b64encode(myCredentials.encode('utf-8'))
-        encoded = byte_credentials.decode("utf-8")
-        txt_Result.append("encoded:"+encoded) 
-        txt_Result.append("Encoding done")
-        conf_file=self.plugin.sh.get_basedir()+'/etc/plugin.yaml'
-        if (store_2_config == True):
-            new_conf = ""
-            with open (conf_file, 'r') as myFile:
-                for line in myFile:
-                    if line.find('alexa_credentials') > 0:
-                        line = '    alexa_credentials: '+encoded+ "\r\n"
-                    if line.find('mfa_secret') > 0 :
-                        line = '    mfa_secret: '+mfa+ "\r\n"
-                    new_conf += line 
-            myFile.close()         
-            txt_Result.append("replaced credentials in temporary file")
-            with open (conf_file, 'w') as myFile:
-                for line in new_conf.splitlines():
-                    myFile.write(line+'\r\n')
-            myFile.close()
-            txt_Result.append("stored new config to filesystem")
-            self.plugin.credentials = myCredentials
-        if login == True:
-            if (mfa != '' and self.plugin.ImportPyOTPError == False):
-                # Try to login asap with MFA
-                self.plugin.mfa_Secret = mfa
-            else:
-                self.plugin.mfa_Secret = ""
-                
-            txt_Result_Login=self.plugin.auto_login_by_request()
-            for entry in txt_Result_Login:
-                txt_Result.append(entry)
-                
-        return json.dumps(txt_Result)
+    def refresh_cookie_html(self):
+        myResult = {}
+        self.plugin.get_cookie_by_refresh_token()
+        self.plugin.login_state = self.plugin.check_login_state()
+        self.plugin.check_refresh_login()
+        if (self.plugin.cookiefile != ""):
+            cookie_txt = self.plugin.read_cookie_file(self.plugin.cookiefile)
+        else:
+            cookie_txt = ""
+        myResult['Result'] = True
+        myResult['data'] = cookie_txt
+        myResult['csrf'] = self.plugin.csrf
+        login_info = self.plugin.last_update_time + '<font color="green"><strong> ('+ self.plugin.next_update_time + ')</strong>'
+        myResult['login_info'] = login_info
+        return json.dumps(myResult)
     
     @cherrypy.expose
-    def storecookie_html(self, cookie_txt=None,):
+    def storecookie_html(self, cookie_txt=None):
         txt_Result={}
         myLines = bytes(cookie_txt, "utf-8").decode("unicode_escape").replace('"','').splitlines()
         #

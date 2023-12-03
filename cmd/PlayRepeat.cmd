@@ -1,4 +1,4 @@
 apiurl|/api/np/command?deviceSerialNumber=<serialNumber>&deviceType=<deviceType>
-description|pauses the device - silence
-json|{"type": "PauseCommand"}
+description|switches Repeat ON/OFF
+json|{"type": "RepeatCommand", "repeat": "<lValue>"}
 myReqType|POST

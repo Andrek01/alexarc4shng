@@ -1,4 +1,4 @@
 apiurl|/api/np/command?deviceSerialNumber=<serialNumber>&deviceType=<deviceType>
-description|pauses the device - silence
-json|{"type": "PauseCommand"}
+description|switches shuffle ON/OFF
+json|{"type": "ShuffleCommand", "shuffle": "<lValue>"}
 myReqType|POST

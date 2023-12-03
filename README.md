@@ -1,6 +1,6 @@
 # AlexaRc4shNG
 
-#### Version 1.0.3
+#### Version 1.1.0
 
 The plugin gives the possibilty to control an Alexa-Echo-Device remote by smartHomeNG. So its possible to switch on an TuneIn-Radio Channel, send some messages via Text2Speech when an event happens on the knx-bus or on the Visu. On the Web-Interface you can define your own commandlets (functions). The follwing functions are available on the Web-Interface :
 
@@ -47,6 +47,7 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 ```yaml
 <mValue>                = Value to send as alpha
 <nValue>                = Value to send as numeric
+<lValue>                = Value to send as logic
 "#item.path/#"          = item-path of the value that should be inserted into text or ssml
 <serialNumber>          = SerialNo. of the device where the command should go to
 <familiy>               = device family
@@ -56,6 +57,20 @@ Special thanks to Jonofe from the [Edomi-Forum](https://knx-user-forum.de/forum/
 #### <strong>!! Please keep in mind to use the "<", ">", "#" and "/#" to qualify the placeholders !!</strong>
 
 ## ChangeLog<a name="changelog"/>
+
+
+#### 2023.12.03 Version 1.1.0
+
+- changed to authentication via Refresh-Token
+- breaking changes in [/etc/plugin.yaml](#plugin_yaml) <sup><span style="color:red"> **Update**</sup></span>
+- fixed problem with TuneIn -> working again
+- new Command for starting Spotify-Playlist
+- revised Web-IF
+- added Routines to Web-IF
+
+#### 2021.02.10 Version 1.0.4
+
+- some small bug fixes on Web-IF
 
 #### 2021.02.10 Version 1.0.3
 
@@ -165,11 +180,11 @@ plugin_name -> fix AlexaRc4shNG <br>
 cookiefile -> the path to the cookie-file. Here it will stored from the Web-Interfache. Take care that you have write-permissions<br>
 host -> the adress of you Alexa-WebInterface<br>
 Item2EnableAlexaRC->Item controlled by UZSU or something else which enables the communication to Alexa-Amazon-devices. if you leave it blank the communication is enabled all the time 24/7.<strong> This item is only checked during update_item in smarthomeNG. If you use the API directly from a logic or from the Webinterface the item will not be checked. In logics you have to check it yourself.</strong><br><br>AlexaCredentials->User and Password for the Amazon-Alex-WebSite for automtic login<br>
-alexa_credentials-> user:pwd (base64 encoded)<br>
+
 item_2_enable_alexa_rc -> Item to allow smarthomeNG to send Commands to Echo's<br>
 login_update_cycle->seconds to wait for automatic Login in to refresh the cookie 
-mfa_secret-> The MFA-Secret you got from Amazon-Website (fill it out with the Web-Interface)
 
+etc/plugin.yaml<a name="plugin_yaml"/></a>
 
 ```yaml
 AlexaRc4shNG:
@@ -177,9 +192,7 @@ AlexaRc4shNG:
     cookiefile: /usr/local/smarthome/plugins/alexarc4shng/cookies.txt
     host: alexa.amazon.de
     item_2_enable_alexa_rc: Item_to_enable_Alexaremote
-    alexa_credentials: <USER>:<PWD>
     login_update_cycle: 432000
-    mfa_secret: <YOUR MFA-Secret>
 ```
 
 
@@ -332,12 +345,54 @@ valid types are :
 
 ```yaml
 sh.AlexaRc4shNG.get_list(type:str)
-  ```
+```
+## Example logic to fill Items with List-Infos
+
+<pre>
+<code>
+from datetime import datetime
+# get the Todo-List
+myList=sh.AlexaRc4shNG.get_list('TO_DO')
+for entry in myList:
+  if entry['completed'] == True:
+    entry['icon'] = 'control_clear'
+  else:
+    entry['icon'] = 'control_home'
+  entry['date'] = datetime.fromtimestamp((entry['updatedDateTime']/1000)).strftime("%d.%m.%Y, %H:%M:%S")
+# Write list to Item - type should be list
+sh.Alexa_Lists.list.todo(myList)
+# get the shopping-List
+myList=sh.AlexaRc4shNG.get_list('SHOPPING_LIST')
+for entry in myList:
+  if entry['completed'] == True:
+    entry['icon'] = 'control_clear'
+  else:
+    entry['icon'] = 'jquery_shop'
+  entry['date'] = datetime.fromtimestamp((entry['updatedDateTime']/1000)).strftime("%d.%m.%Y, %H:%M:%S")
+# Write list to Item - type should be list
+sh.Alexa_Lists.list.shopping(myList)
+</code>
+</pre>
+
+## Example to show lists in smartVisu with status.activelist
+<pre>
+<code>
+status.activelist('','Alexa_Lists.list.todo','value','date','value','info')
+
+status.activelist('','Alexa_Lists.list.shopping','value','date','value','info')
+</code>
+</pre>
+
+### Ergebnis :
+![PlaceHolder](./assets/Alexa_lists.jpg  "jpg")
+
+
+
 # Web-Interface <a name="webinterface"/></a>
 
 The Webinterface is reachable on you smarthomeNG server here :<br>
 
-<strong>yourserver:8383/alexarc4shng/</strong>
+<strong>http://yourserver:8383/plugins/alexarc4shng/</strong>
 
 ## Cookie-Handling
 

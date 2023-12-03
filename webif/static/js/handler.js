@@ -18,7 +18,6 @@ function BtnStoreCookie()
 			myResult=JSON.parse(response)
 			if (myResult.data.Result == true)
 				{
-				document.getElementById('reloadPage').style.visibility='visible'
 				document.getElementById('txt_Result').textContent='You did it\nLogin was successfull\nCookie was stored\nPlease reload Page'
 				document.getElementById('txt_Result').style.backgroundColor="Lightgreen"
 				document.getElementById('txt_Result').style.color='black'
@@ -65,321 +64,7 @@ function PublicAjax(url, data)
 	});	
 }
 
-//***************************************************
-// Validate the response from Step by Step MFA-Setup
-//***************************************************
-function ValidateMFAResponse(response)
-{
-	myData = JSON.parse(response)
-	if (myData.Status == 'OK')
-		{
-		 document.getElementById("Tooltip").style.backgroundColor="#d4edda" 
-		 myStep = parseInt(myData.Step.substr(4,1))
-		 document.getElementById("Status_" + String(+myStep)).classList.add("fa-check-circle")
-		 document.getElementById("Status_" + String(+myStep)).classList.remove("fa-exclamation-triangle")
-		 document.getElementById("Status_" + String(+myStep)).style.color = "green"
-	     switch (myStep)
-	     {
-	     case 1:
-	    	 {
-	    	   myToolTip = "<div>"
-	    	   myToolTip +=  "<strong>open Amazon-Site and create a new APP</strong><br><br>"
-		       myToolTip +=  "- Amazon-Web-Site will be opened automatically by pressing the button<br>"
-			   myToolTip +=  "- Create a new APP<br>"		    	   
-	    	   myToolTip +=  '- Select <strong>"barcode could not be read"</strong> and copy the shown MFA-Secret to to clipboard.<br>'
-	    	   myToolTip +=  "<br>Press the button to continue"
-	    	   myToolTip +=  "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   break;
-	    	 }
-	     case 2:
-	    	 {
-	    	   myToolTip = "<div>"
-	    	   myToolTip +=  "<strong>Insert the MFA-Secret</strong><br>"
-	    	   myToolTip += "- Insert the copied MFA-Secret to the AlexaRc4shNG-Web-Interface<br>"
-	    	   myToolTip += '- After you have inserted the copied MFA-Secret, by pressing the button „Code berechnen“ the OTP-Code will be calculated by the plugin.<br>'
-   	    	   myToolTip += "<br>Press the button to continue"
-	    	   myToolTip += "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   break;
-	    	 }	    	 
-	     case 3:
-	    	 {
-	    	   myToolTip = "<div>"
-    		   myToolTip += "- The calculated Code will be shown on the Web-Interface and automatically copied to the Clipboard.<br>"
-   	       	   myToolTip += "- Please insert the OTP-code to the amazon-site, when the OTP is accepted please confirm.<br>"
-   			   myToolTip += " <strong>(you need two tries to insert it from clipboard, on first try the amazon-Website would not accept the code from clipboard</strong>)<br>"
-	    	   myToolTip += "<br>Press the button to continue"
-	    	   myToolTip += "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   document.getElementById("txtOTP").value= myData.data.OTPCode
-	    	   copyToClipboard(myData.data.OTPCode);
-	    	   break;
-	    	 }	    	 
-	     case 4:
-	    	 {
-	    	   myToolTip = "<div>"
-    		   myToolTip +=  "<strong>Store the MFA-Code to your ./etc/plugin.yaml</strong><br>"
-	    	   myToolTip += "<br>Press the button to continue"
-	    	   myToolTip += "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   break;
-	    	 }	    	 
-	     case 5:
-	    	 {
-	    	   myToolTip = "<div>"
-	    	   myToolTip +=  "<strong>try to  login with MFA</strong><br>"
-	    	   myToolTip += "<br>Press the button to continue"
-	    	   myToolTip += "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   break;
-	    	 }
-	     case 6:
-	    	 {
-	    	   document.getElementById("Status_" + String(+myStep+1)).classList.add("fa-check-circle")
-			   document.getElementById("Status_" + String(+myStep+1)).classList.remove("fa-exclamation-triangle")
-			   document.getElementById("Status_" + String(+myStep+1)).style.color = "green"
-			   document.getElementById("Status_" + String(+myStep+1)+"_1").classList.add("fa-check-circle")
-			   document.getElementById("Status_" + String(+myStep+1)+"_1").classList.remove("fa-exclamation-triangle")
-			   document.getElementById("Status_" + String(+myStep+1)+"_1").style.color = "green"
-						 
-	    	   myToolTip = "<div>"
-	    	   myToolTip +=  "<strong>Successfully done</strong><br>"
-	    	   myToolTip += "<br>Press the reload button to continue"
-	    	   myToolTip += "</div>"
-	    	   document.getElementById("Tooltip").innerHTML= myToolTip
-	    	   document.getElementById('goal').innerHTML="congratulations<br>You did it !"
-    		   document.getElementById('img_goal').src="static/img/alexa_cookie_good.png"
- 			   document.getElementsByTagName("img")[0].src="static/img/alexa_cookie_good.png"
- 			   document.getElementById('btnMfaReset').style.visibility="hidden"
- 			   document.getElementById('btnMfaReload').style.visibility="visible" 				   
-	    	   break;
-	    	 }
-	     }
-		 myStep += 1
-		 try
-		 { document.getElementById("Line_" + String(+myStep)).style.visibility = "visible" }
-		 catch (e)
-		 {}
-		 
-		}
-	else
-		{
-		 myStep = parseInt(myData.Step.substr(4,1))
-		 document.getElementById("Status_" + String(+myStep)).classList.remove("fa-check-circle")
-		 document.getElementById("Status_" + String(+myStep)).classList.add("fa-exclamation-triangle")
-		 document.getElementById("Status_" + String(+myStep)).style.color = "red"
-	     switch (myStep)
-		     {
-		     case 3:
-		    	 {
-		    	 myToolTip = "<div>"
-				 myToolTip += "<strong>Error</strong><br>"
-			     myToolTip += "<br>"+myData.data.Message
-				 myToolTip += "<br>Please reload page"
-				 myToolTip += "</div>"
-				 document.getElementById("Tooltip").innerHTML= myToolTip
-				 document.getElementById("Tooltip").style.backgroundColor="red"
-		    	 break;
-		    	 }
-		     case 5:
-	    	 {
-		    	 myToolTip = "<div>"
-				 myToolTip += "<strong>Error</strong><br>"
-			     myToolTip += "<br>"+myData.data.Message
-				 myToolTip += "<br>Please reload page"
-				 myToolTip += "</div>"
-				 document.getElementById("Tooltip").innerHTML= myToolTip
-				 document.getElementById("Tooltip").style.backgroundColor="red"
-		    	 break;
-	    	 }		    	 
-		     case 6:
-		    	 {
-		    	 myStep += 1
-		    	 document.getElementById("Status_" + String(+myStep)+"_1").classList.remove("fa-check-circle")
-				 document.getElementById("Status_" + String(+myStep)+"_1").classList.add("fa-exclamation-triangle")
-				 document.getElementById("Status_" + String(+myStep)+"_1").style.color = "red"
-				 document.getElementById('img_goal').src="static/img/alexa_cookie_bad.png"
-				 document.getElementsByTagName("img")[0].src="static/img/alexa_cookie_bad.png"
-				 document.getElementById('goal').innerHTML="Sorry, login was not successfull"
-				 document.getElementById('btnMfaReset').style.visibility="visible"
-				 document.getElementById('btnMfaReload').style.visibility="hidden"
-				 myToolTip = "<div>"
-			     myToolTip +=  "<strong>Please try again</strong><br>"
-			     myToolTip += "<br>Press the reset button to continue"
-			     myToolTip += "</div>"
-			     document.getElementById("Tooltip").innerHTML= myToolTip
-			     document.getElementById("Line_" + String(+myStep)).style.visibility = "visible"
-		    	 }
-	    	 }
-		}
-	console.log(response)
-	$("#reload-element").removeClass("fa-spin")
-    $("#MFAcardOverlay").hide();
-}
 
-//*******************************************
-// MFA-Login Reset
-//*******************************************
-function mfaReset()
-{
-	for (var i = 2; i <= 7; i++)
-		{
-		 document.getElementById("Line_" + String(+i)).style.visibility = "hidden"
-		 document.getElementById("Status_" + String(i-1)).classList.remove("fa-check-circle")
-		 document.getElementById("Status_" + String(i-1)).classList.remove("fa-exclamation-triangle")
-		}
-	document.getElementById('btnMfaReset').style.visibility="hidden"
-	myToolTip = "<div>"
-	myToolTip +=  "<strong>Enter Credentials</strong><br>"
-	myToolTip += "Enter your credentials for the alexa.amazon-Website<br>Press the button to continue"
-	myToolTip += "</div>"
-	document.getElementById("Tooltip").innerHTML= myToolTip
-	document.getElementById("txtMFAUser").value = ""
-	document.getElementById("txtMFAPwd").value = ""
-	document.getElementById("txtMFA").value = ""
-	     
-		
-}
-//*******************************************
-// Step by Step-Handler MFA-Login
-//*******************************************
-function BtnHandleMFA(step)
-{
-    //$("#MFAcardOverlay").addClass("fa-spin");
-    $("#MFAcardOverlay").show();
-    $("#reload-element").addClass("fa-spin")
-	data = {}
-  switch(step)
-  {
-  case 1:
-	  {
-	  myUser = document.getElementById("txtMFAUser").value
-	  myPwd  = document.getElementById("txtMFAPwd").value 
-	  data["Key"] ="Step"+String(step); 
-	  data["data"]={User: myUser, Pwd:myPwd};
-	  PublicAjax('handle_mfa', data, step)
-	  break;
-	  }
-  case 2:
-	  {
-	  data["data"]={}
-	  data["Step"] = "Step2"
-	  data["Status"]="OK";
-	  myChildWindows = window.open('https://www.amazon.de/a/settings/approval', '_blank', 'location=yes,scrollbars=yes,status=yes');
-	  ValidateMFAResponse(JSON.stringify(data));
-	  break;
-	  }
-  case 3:
-	  {
-	  data["Key"] ="Step"+String(step); 
-	  myMFA = document.getElementById("txtMFA").value;
-	  data["data"]={MFA: myMFA}
-	  PublicAjax('handle_mfa', data, step)
-	  break
-	  }
-  case 4:
-	  {
-	  data["data"]={}
-	  data["Step"] = "Step4"
-	  data["Status"]="OK";
-	  ValidateMFAResponse(JSON.stringify(data));
-	  break
-	  }
-  case 5:
-	  {
-	  myUser = document.getElementById("txtMFAUser").value
-	  myPwd  = document.getElementById("txtMFAPwd").value
-	  myMFA = document.getElementById("txtMFA").value;
-	  data["Key"] ="Step"+String(step); 
-	  data["data"]={User: myUser, Pwd:myPwd,MFA: myMFA };
-	  PublicAjax('handle_mfa', data, step)
-	  break;
-	  }
-  case 6:
-	  {
-	  data["Key"] ="Step"+String(step); 
-	  data["data"]={command: 'login' };
-	  PublicAjax('handle_mfa', data, step)
-	  break;
-	  }
-  }
-}
-
-
-//*******************************************
-// Button Handler for Encoding credentials
-//*******************************************
-
-function BtnEncode(result)
-{
-      user = document.getElementById("txtUser").value;
-      pwd = document.getElementById("txtPwd").value;
-      mfa = ""
-      store2config = true
-      encoded=user+":"+pwd;
-      encoded=btoa(encoded);
-	$.ajax({
-		url: "store_credentials.html",
-		type: "GET",
-		data: { encoded : encoded,
-			user : user,
-		   	pwd : pwd,
-			store_2_config : store2config,
-			mfa : mfa,
-			login : true
-		      },
-		contentType: "application/json; charset=utf-8",
-		success: function (response) {
-				ValidateEncodeResponse(response);
-		},
-		error: function () {
-			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
-		}
-	});
-  return
-}
-//*******************************************
-// Button Handler LogIn to Amazon-Site
-//*******************************************
-
-function BtnLogIn(result)
-{
-	$.ajax({
-		url: "log_in.html",
-		type: "GET",
-		data: {} ,
-		contentType: "application/json; charset=utf-8",
-		success: function (response) {
-			ValidateLoginResponse(response);
-		},
-		error: function () {
-			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
-		}
-	});
-  return
-}
-
-//*******************************************
-// Button Handler LogOff from Amazon-Site
-//*******************************************
-
-function BtnLogOff(result)
-{
-	$.ajax({
-		url: "log_off.html",
-		type: "GET",
-		data: {} ,
-		contentType: "application/json; charset=utf-8",
-		success: function (response) {
-			document.getElementById("txt_Result").innerHTML = response;
-		},
-		error: function () {
-			document.getElementById("txt_Result").innerHTML = "Error while Communication !";
-		}
-	});
-  return
-}
 
 //*******************************************
 // Button Handler for saving Commandlet
@@ -411,7 +96,8 @@ function BtnSave(result)
          myPayload,
          document.getElementById("txtCmdName").value,
          document.getElementById("txtApiUrl").value,
-         document.getElementById("txtDescription").value
+         document.getElementById("txtDescription").value,
+         document.getElementById("txtmyReqType").value
 	);
 
 }
@@ -476,7 +162,8 @@ function BtnTest(result)
          myPayload,
          document.getElementById("txtCmdName").value,
          document.getElementById("txtApiUrl").value,
-         document.getElementById("txtDescription").value
+         document.getElementById("txtDescription").value,
+         document.getElementById("txtmyReqType").value
 	);
 }
 
@@ -486,8 +173,6 @@ function BtnTest(result)
 
 function BtnDelete(result)
 {
-   buildCmdSequence();
-   return
     var filetodelete = document.getElementById("txtCmdName").value;
     if (filetodelete == "") {
          alert ("No Command selected to delete, first select one");
@@ -506,7 +191,8 @@ function BtnDelete(result)
          "",
          document.getElementById("txtCmdName").value,
          document.getElementById("txtApiUrl").value,
-         document.getElementById("txtDescription").value
+         document.getElementById("txtDescription").value,
+         ""
 	);
 }
 
@@ -592,7 +278,7 @@ else
 // Function to Test Command-Let
 //*******************************************
 
-function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
+function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription, txtmyReqType) {
 	$.ajax({
 		url: "handle_buttons.html",
 		type: "GET",
@@ -602,7 +288,8 @@ function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDes
 			txt_payload : txt_payload,
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
-			txtDescription : txtDescription} ,
+			txtDescription : txtDescription,
+			txtmyReqType : txtmyReqType,} ,
 		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
@@ -620,7 +307,7 @@ function TestCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDes
 // Function to Save Command-Let
 //*******************************************
 
-function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
+function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription,txtmyReqType) {
 	$.ajax({
 		url: "handle_buttons.html",
 		type: "GET",
@@ -630,7 +317,8 @@ function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDe
 			txt_payload : txt_payload,
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
-			txtDescription : txtDescription} ,
+			txtDescription : txtDescription,
+			txtmyReqType : txtmyReqType} ,
 		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
@@ -648,7 +336,7 @@ function StoreCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDe
 // Function to Delete Command-Let
 //*******************************************
 
-function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription) {
+function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtDescription,txtmyReqType) {
 	$.ajax({
 		url: "handle_buttons.html",
 		type: "GET",
@@ -658,7 +346,8 @@ function DeleteCMD(txtValue,selectedDevice,txt_payload,txtCmdName,txtApiUrl,txtD
 			txt_payload : txt_payload,
 			txtCmdName : txtCmdName,
 			txtApiUrl : txtApiUrl,
-			txtDescription : txtDescription} ,
+			txtDescription : txtDescription,
+			txtmyReqType : txtmyReqType} ,
 		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ValidateResponse(response)
@@ -726,7 +415,6 @@ function build_cmd_list(result)
 //*******************************************
 // reloads the list with the Command-Lets
 //*******************************************
-
 function reloadCmds()
 {
         $("#reload-element").addClass("fa-spin");
@@ -759,7 +447,8 @@ function LoadCommand(txtCmdName)
 			txt_payload : "",
 			txtCmdName : txtCmdName,
 			txtApiUrl : "",
-			txtDescription : ""} ,
+			txtDescription : "",
+			txtmyReqType : ""} ,
 		contentType: "application/json; charset=utf-8",
 		success: function (response) {
 				ShowCommand(response,txtCmdName);
@@ -797,7 +486,7 @@ function ShowCommand(response,txtCmdName)
 		}
 	     else if (x == "myUrl")
 		{
-		 console.log(objResponse[0][x])
+		   console.log(objResponse[0][x])
 	  	 document.getElementById("txtApiUrl").value = objResponse[0][x];		
 		}
 	     else if (x == "payload")
@@ -809,6 +498,11 @@ function ShowCommand(response,txtCmdName)
 	   myCodeMirrorPayload.focus;
 		 myCodeMirrorPayload.setCursor(myCodeMirrorPayload.lineCount(),0);
 		}
+	     else if (x == "myReqType")
+		{
+		   console.log(objResponse[0][x])
+	  	 document.getElementById("txtmyReqType").value = objResponse[0][x];		
+		}		
 	    }
 	document.getElementById("txtresult").value = myResult;
 	if (myResult == "OK")
@@ -825,47 +519,132 @@ function ShowCommand(response,txtCmdName)
 }
 
 
-//************************************************************************
-//copyToClipboard - copies the finalized Widget to the Clipboard
-//************************************************************************
-const copyToClipboard = str => {
-	  const el = document.createElement('textarea');  // Create a <textarea>
-														// element
-	  el.value = str;                                 // Set its value to the
-														// string that you want
-														// copied
-	  el.setAttribute('readonly', '');                // Make it readonly to
-														// be tamper-proof
-	  el.style.position = 'absolute';                 
-	  el.style.left = '-9999px';                      // Move outside the
-														// screen to make it
-														// invisible
-	  document.body.appendChild(el);                  // Append the <textarea>
-														// element to the HTML
-														// document
-	  const selected =            
-	    document.getSelection().rangeCount > 0        // Check if there is any
-														// content selected
-														// previously
-	      ? document.getSelection().getRangeAt(0)     // Store selection if
-														// found
-	      : false;                                    // Mark as false to know
-														// no selection existed
-														// before
-	  el.select();                                    // Select the <textarea>
-														// content
-	  document.execCommand('copy');                   // Copy - only works as
-														// a result of a user
-														// action (e.g. click
-														// events)
-	  document.body.removeChild(el);                  // Remove the <textarea>
-														// element
-	  if (selected) {                                 // If a selection
-														// existed before
-														// copying
-	    document.getSelection().removeAllRanges();    // Unselect everything
-														// on the HTML document
-	    document.getSelection().addRange(selected);   // Restore the original
-														// selection
-	  }
-	};
+//************************************************
+// builds and show table with Routines
+//************************************************
+
+
+function build_routine_list(result)
+{
+
+    var temp ="";
+    temp = "<div class='table-responsive' id='tableRoutines' href='#' onclick='SelectRoutine()'  style=min-width: 30px;><table class='table table-striped table-hover'>";
+    temp = temp + "<thead><tr class='shng_heading'><th class='py-1'>Routine-Name</th></tr></thead>";
+    temp = temp + "<tbody>";
+	  
+    for (var i = 0; i < result.length; i++){
+        temp = temp + "<a href='SelectListItem'><tr><td class='py-1'>"+ result[i] + "</td></tr>";
+    	        
+    }
+	
+
+    temp = temp + "</tbody></table></div>";
+    $('#routines').html(temp);
+
+    $('#tableRoutines').on("click", "tr",function()
+     {
+       var value = $(this).closest("tr").find("td").first().text();
+       if (value != "") {
+       //LoadCommand(value);
+       loadRoutine(value);
+     }
+    });
+
+
+
+}
+//*******************************************
+// reloads the list with the Command-Lets
+//*******************************************
+function reloadRoutines()
+{
+        $("#reload-element").addClass("fa-spin");
+        $("#cardOverlay").show();
+        $.getJSON("build_routine_list_html", function(result)
+        		{
+	        	build_routine_list(result);
+	            window.setTimeout(function()
+	            		{
+		                $("#refresh-element").removeClass("fa-spin");
+		                $("#reload-element").removeClass("fa-spin");
+		                $("#cardOverlay").hide();
+	            		}, 300);
+
+        		});
+
+}
+
+//***************************************************
+//Function to load a single Routine
+//***************************************************
+function loadRoutine(routineName)
+{
+	$.ajax({
+		url: "load_routine.html",
+		type: "GET",
+		data: { name : routineName }, //data,
+		contentType: "application/json; charset=utf-8",
+		success: function (response) {
+			myResult=JSON.parse(response)
+			if (myResult.Result == true)
+				{
+				myCodeMirrorRoutines.setValue(JSON.stringify(JSON.parse(myResult.data),null,2))
+				}
+			else
+				{
+
+				}
+		},
+		error: function (xhr, status, error) {
+			document.getElementById("txt_routine").innerHTML = "Error while Communication !";
+            $("#reload-element").removeClass("fa-spin");
+		}
+	});	
+}
+
+
+//************************************************
+// OnClick-function for Routine-List
+//************************************************
+
+function SelectRoutine()
+{
+   var value = $(this).closest("tr").find("td").first().text();
+
+   if (value != "") {
+	alert(value);
+      }
+  
+}
+
+//************************************************
+// Refresh Cookie manual
+//************************************************
+
+function Refresh_Cookie()
+{
+	$.ajax({
+		url: "refresh_cookie.html",
+		type: "GET",
+		data: {}, 
+		contentType: "application/json; charset=utf-8",
+		success: function (response) {
+			myResult=JSON.parse(response)
+			if (myResult.Result == true)
+				{
+				  myCodeMirrorConf.setValue(myResult.data)
+				  document.getElementById('webif-head-span-3-2').innerHTML = myResult.login_info
+				  document.getElementById('webif-head-span-1-2').innerHTML = myResult.csrf
+				}
+			else
+				{
+
+				}
+		},
+		error: function (xhr, status, error) {
+            myCodeMirrorConf.setValue("Error while Communication !");
+            $("#reload-element").removeClass("fa-spin");
+		}
+	});	
+}
+	
